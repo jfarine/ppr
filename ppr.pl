@@ -114,6 +114,7 @@
 # 160416 - finished implementation of db mechanism, and tested ok
 #          NOTE: IF EDITING THE LIST OF PARAMETERS, look for the following comment line throughout the script:
 #          ### edit the above if changing/adding/removing the db parameters
+# 160417 - lame attempt to port to github
 #
 # 
 # TODOes:
