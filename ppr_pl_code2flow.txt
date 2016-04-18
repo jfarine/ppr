@@ -4,6 +4,8 @@ Inits;
 Load and check rundata;
 Load and check database;
 open I/O files;
+// main event loop
+// read from <rfn>.tod
 while(<IDF>){
     get time;
     n_data++;
@@ -11,13 +13,17 @@ while(<IDF>){
     set PARAMs from rundata/DB;
     if(n_data > 1){
         calc Dqs, Dts, dq/dt;
-        if(dt > gap){
+        // gap in
+        // data ?
+        if(dt > gap ?){
             msg to STDOUT, ODGF;
             update xtreme vars;
         } else {
             update extrema;
         }
-        if(dt < 0){
+        // overlap
+        // condition ?
+        if(dt < 0?){
             msg out;
             incr counters;
         }
@@ -25,19 +31,23 @@ while(<IDF>){
         push to last_thres_vals;
         using dqdt_qph, thres_up/dn: set up/dn_met;
         push to last_slopeup/dn_vars;
+        // current point
+        // in_spate cond'n ?
         if(n_data > n_recent2consider){
-            sum=SUM(last_thres_vals)[0..(n_recent2consider)];
+            sum=SUM(last_thres_vals)(0..n_recent2consider);
             if(ndata > n_recent2consider+3){
-                dq_local=1000*(Delta([n_recent2consider]-[0]));
+                dq_local=1000*(Delta(n_recent2consider)-(0));
             }
             if(sum > n_slopeup_above_thres
-               && last_thres_vals[0]
-               && last_thres_vals[n_recent2consider-1]
+               && last_thres_vals(0)
+               && last_thres_vals(n_recent2consider-1)
                && dq_local > dq_local_min){
                 in_spate = 1;
             } else {
                 in_spate = 0;
             }
+            // recent points
+            // ID new spate ?
             if(in_spate && !in_spate_last
               &&  !in_spate_last_but1
               &&  !in_spate_last_but2){
@@ -68,13 +78,15 @@ while(<IDF>){
             calc DSL;
         }
         if(ndata > n_thres_up+1){
-            if(all last_slopeup_vals[0..(n_thres_up-1)] = 1){
+            if(all last_slopeup_vals(0..(n_thres_up-1)) = 1){
                 peak_cond_met = 1;
             } else {
                 peak_cond_met = 0;
             }
             shift(last_lopeup_vals);
             msg STDOUT;
+            // peak
+            // detection
             if(dqdt_qph <= thres_up
               && peak_cond_met == 1
               && nspate > 0){
@@ -98,13 +110,15 @@ while(<IDF>){
             }
         }
         if(ndata > n_thres_dn+1){
-            if(all last_slopedn_vals[0..(n_thres_dn-1)] = 1){
+            if(all last_slopedn_vals(0..(n_thres_dn-1)) = 1){
                 through_cond_met = 1;
             } else {
                 through_cond_met = 0;
             }
             shift(last_lopedn_vals);
             msg STDOUT;
+            // through
+            // detection
             if(dqdt_qph <= thres_dn
               && peak(through?)_cond_met == 1
               && nspate > 0){
@@ -128,4 +142,4 @@ while(<IDF>){
 close most O files;
 conclusion print to O file;
 close O file;
-end:
+end;
