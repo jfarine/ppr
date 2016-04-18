@@ -55,6 +55,10 @@
 #                Conventions for this conversion vary, i.e. where 1 unit is either a year or a day; the unit for ddoy is a day. 
 #                So a std year starts at 0.00 (for Jan 1st 00:00) and ends at 365.00 (Dec 31st 24:00) [ a leap year 366.00 ]
 #                See subroutines DoYR and dysize [NFS: check what happens after 365 ..]
+#              - 160417: finally find some piece of mind: replace all cdyr and ddoy with good ol'unix epoch. Yep, epoch.
+#                Quite some coding to adapt though, reports included. Hope I did not break anything.
+#                DECISION => Replacement of cdyr and ddoy by epoch implies using only units of 'q'uantity per hour
+#                            Gone are the mph, cm per min .. etc. Q and T a not in 'meter' anyway
 #
 # Versions:
 # --- the following is left for background until 160415 --- may be obsolete ---
@@ -64,6 +68,7 @@
 # 140217 - Mavericks broke Perl .. comment out "require ctime.pl" and "use Switch"
 # 140223 - added threshold detector for dh/dt, implemented code to detect 
 #          (crue = rise, spate) - define spate if current and last n_thres dh/dt are > $spate_thres_up
+#          [ Note 160417: replaced lvl>qty, h>q do dh/dt > dhdt > dqdt ]
 #        - a bit tricky given the data goes backwards (better: reordered file for off-line)
 #        - also gives base / max levels for that spate
 #        - saves spates in new file .spt - see code for format
@@ -71,6 +76,7 @@
 #          see macro hist1.cxx in moti/data/2014
 # 140226 - added ttns_d time to next spate (days) (which was seen last since data is backwards)
 #        - started serious ROOT macro - can now plot lvl, dh/dt and new_spate together
+#          [ Note 160417: replaced lvl>qty, h>q ]
 #          **from now on all new ROOT macros will be in ../macros**
 #        - COMPLETELY REDEFINED TO PROCESS .tod FILES, i.e. CL's.txt processed by cl_refmt.pl
 #        - ttns_d replaced by tsls_d - time since last spate (days)
@@ -111,10 +117,48 @@
 #          (customizable or not, loop inits or general inits, etc..), also added more doc
 #        + implemented rundata mechanism, created template rundata file
 #        + ran out of steam while working on db implem'ns
-# 160416 - finished implementation of db mechanism, and tested ok
+# 160416 - finished implementation of db file and parser; tested ok (usage in script still to be implemented)
 #          NOTE: IF EDITING THE LIST OF PARAMETERS, look for the following comment line throughout the script:
 #          ### edit the above if changing/adding/removing the db parameters
-# 160417 - lame attempt to port to github
+#          IMPORTANT:
+#          ### The implementation is suboptimal in a number of ways:
+#          ### 1) the test against rd/db variables is done for every point
+#          ### 2) changing db parameters while associated variables are being used in a Bad Idea.
+#          ###    This could cause exceptions at execution time and/or make calculations
+#          ###    meaningless, mostly because the depth of stacks could change.
+#          ###    => a safe implementation would change DB values only between blocks of data
+#          ###    => if changing DB valus within a block is unavoidable, proceed with care !
+# 160417 - lame attempt to port to github and use XCode
+#          - how to do it so that it is immediately "mirorred" locally ?
+#            I had to "dnld to PC and open in GH-DT", which created a new copy in repo subdir?!?
+#            How do I get GitHub to just use the original file ?!?
+#          - XCode newproject OK, import file OK, perl syntaz highlighting fine but..
+#            - creating a new Scheme to run perl on script with Cmd-R all went ok..
+#            - .. but hitting Cmd-R opens a thread in an editor-like window.. 0 _dyld_start ?!?
+#              ==> ok could fix that: tick off "Debug executable" in "Edit (current) Scheme.."
+#                  output window now shows same as when run from the shell
+#                  [ and Scheme is configured to run in ~BSS/160414/160415tests, with two arguments, **in that order**:
+#                  ppr_github/ppr.pl
+#                  Q_Amont_2003test.tod ]
+#            - must also figure out how to create lib with my symbols in Perl. Current syntax higlighting has col defines for Project/local variables..
+#              but they are not applied. .few hours later: doesn't seem to have interested anybody to implement
+#        + replaced all cdyr and ddoy with good ol'unix epoch - finally a proper time ref. 
+#          -> preserved datetime strings in script and rundata/db for human consumption
+#          -> caused renaming of many variables; rates of change per minute were dropped
+#          -> revisited entire code to ensure integrity of data calculations and usage
+#          -> including necessary changes to output files (checked all)
+#          Note: some points are not cristal-clear: they are marked with ### MUST CHECK ###
+#        + replaced function and meaning of $n_spate_thres_up with $n_recent_to_consider and $n_slope_up_above_thres
+#          -> included one more parameter in db file, and updated all db related code
+#        + removed all references to "level, height, meters, centimeters, .." (except in a few comments for reference)
+#          -> all of those are now called 'quantity/ies': lvl->qty; h->q; m(eters)->q
+#          -> caused renaming of many variables; centimeters were dropped, output files accordingly simpler
+#        -> all these mods let to a change of unit of the DB parameter spates_thres_up : from cm/min to qty/hour
+#        + some logics was checked, a few bugs were fixed or clarified as not being bugs (they are marked individually)
+#        + some possible redundancy identified: are spate_thres_up and thres_up doing the same thing ?
+#        + updated the documentation in the script and in template rundata and db files (more clean up work needed, best after logics is debugged)
+#        => wait for Cecile to get a GitHub account and will make her Principal Collaborator
+#        => still not done: the full intricacies of the PR logics. This required all the above to be polished first.
 #
 # 
 # TODOes:
@@ -131,6 +175,7 @@
 #          Note: *two* dates should always be involved: 1-data retrieval; 2-dan
 #        + spate detector: slope dh/dt> is not strictly correct. Correct criterium is:
 #          dh/dt > slope of <intake-free discharge for this level>
+#          [ Note 160417: replaced lvl>qty, h>q do dh/dt > dhdt > dqdt ]
 #          (Q: is that slope always the same at the same levels ?? - need data)
 # 140302 - see notes above under same dates
 #        - check new peak calculations, esp. throughs - dates to <peak> can be odd
@@ -138,6 +183,7 @@
 # 140304 - Trigger:
 #          - replace last_but1|2 with test on n_not_in_spate >= n_not_in_spate_req & check still OK
 #          + still missing b7 (requires now arrays of size 5, not 4.. re-include dh_local_vals then)
+#            [ Note 160417: replaced lvl>qty, h>q do dh/dt > dhdt > dqdt ]
 #          + still triggering on fake b10b
 #          + fluke ns#1 2011.0428652968
 #          + flukes from fluctuations during single, nice broad event
@@ -214,11 +260,15 @@
 #               a cleaner mechanism would be to craft rfn to include ploc, i.e. $rfn="Q_<ploc>_other.dat"
 #               i.e. a disciplined, fixed format rfn will allow the script to find its pointers to the DB
 #               (e.g. in the example above from Cécile, rfn already contains either T or Q !)
-#        -> running out of steam at the end of 160415 .. rundata implements, but not db yet
+#        -> running out of steam at the end of 160415 .. rundata implemented, but not db yet
 # 160416 - evaluate if the amplitude of the <observable> (level) should be taken into account too in the 
 #          spate detector. It was not the case in Môtiers, but for probes with a long ST, like >= 1h, it might
 #          be relevant and increase the sensitivity to small spates.
 #        => TBD later if of interest and worth the time - by core developper :-)
+# 160417 - are spate_thres_up and thres_up doing the same thing ?
+#        => can now debug the entire logics in all its glory .. 
+#        + documentation: more clean up work needed, but best done after logics is debugged
+#        + then can trim down a lot of comments, and move on with a leaner file (1804 lines as per tonight)
 #
 # Careful, this is the end of the list of TODOes, not Versions !!
 # add new TODOes above 'Careful', and new Versions above 'TODOes' :-)
@@ -236,7 +286,7 @@ use		  Math::Trig;
 # Getting errors, I commented them out and my copy-pasted snippet just works FINE.
 # use     strict;       # should read http://perldoc.perl.org/strict.html
 # use     warnings;     # should read http://perldoc.perl.org/warnings.html
-
+use     DateTime;     # added 160417 for robust datetime handling
 
 ### CUSTOMIZABLE PARAMETERS +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 #
@@ -248,41 +298,42 @@ use		  Math::Trig;
 $verbose = 1;	# set to 1 for debugging
 
 # custo 2 - this is to inform the program about the data it is being given
-$path_rundata       =    ".";   # tell script where to find DB rundata_<location>.txt files
-#                               # script will then look for sample location $SP in $rfn to
-#                               # construct full rundata file name
+$path_rundata              =    ".";   # tell script where to find DB rundata_<location>.txt files
+#                                      # script will then look for sample location $SP in $rfn to
+#                                      # construct full rundata file name
 # gap detector - will look for gaps in data by flagging intervals between points > $thres_gap 
 # (this is about finding out when data is missing)
-$thres_gap          =     31;   # time in minutes
+$thres_gap                 =     31;   # time in minutes
 
 # custo 3 - this is to fine tune the peak search
-$path_db            =    ".";   # tell script where to find DB ppr_db_[Q|T].txt files
+$path_db                   =    ".";   # tell script where to find DB ppr_db_[Q|T].txt files
 ## number of intervals to include in avdhdt  (#BUG2#? this is used nowhere in the code ?!?)
-$n_avdhdt=6;
+$n_avdhdt                  =      6;
 ## requirements to define spate (up) or peak (down) conditions
 # Note the different uses  to avoid false positive triggers !!
-$n_spate_thres_up   =      4;   # number of consecutive data points that must be above threshold
-#new# $n_recent_to_consider   =      4;   # number of consecutive data points that must be looked at for being above threshold or not
-#new# $n_slope_up_above_thres   =      3;   # number of data points in the $n_recent_to_consider  most recent that must be above threshold
-$spate_thres_up     =      0;   # threshold value [cm/min] (must experiment with data) 
-$n_not_in_spate_req =      3;   # request that these many pts are "not in spate" prior to allowing a new spate (#BUG3#? - formerly said not not in spate)
-$dh_local_min       =      3;   # min raise requested (in mm) between [0] and [3]
+# the following obsoleted on 160417 and replaced by the next two
+# $n_spate_thres_up          =      4;   # number of consecutive data points that must be above threshold
+$n_recent_to_consider      =      4;   # number of consecutive data points that must be looked at for being above threshold or not
+$n_slope_up_above_thres    =      3;   # number of data points in the $n_recent_to_consider  most recent that must be above threshold
+$spate_thres_up            =      0;   # threshold value [qty/hour] (must experiment with data)    ### UNIT WAS cm/min before
+$n_not_in_spate_req        =      3;   # request that these many pts are "not in spate" prior to allowing a new spate (#BUG3#? - formerly said not not in spate)
+$dq_local_min              =      3;   # min raise requested [ Note: when q was h, this was "in (in mm) between [0] and [3]" - TBD now ]
 ## the following is for peak/through detection
 # peak/through detector have a slightly different logics
 # careful with confusion up/down here: read <whatever> "for ending going _up/_dn after passing the point"
-$n_thres_up         =      4;   # number of consecutive data points that must slope *down* before the one going up
-$thres_up           =      0;   # threshold value [m/hour] (must experiment with data)
-$n_thres_dn         =      4;   # number of consecutive data points that must slope *up* before the one going down
-$thres_dn           =      0;   # threshold value [m/hour] (must experiment with data)
+$n_thres_up                =      4;   # number of consecutive data points that must slope *down* before the one going up
+$thres_up                  =      0;   # threshold value [qty/hour] (must experiment with data)
+$n_thres_dn                =      4;   # number of consecutive data points that must slope *up* before the one going down
+$thres_dn                  =      0;   # threshold value [qty/hour] (must experiment with data)
 ### edit the above if changing/adding/removing the db parameters
 # IF UDATING NUMBER OF DB PARAMETERS THE FOLLOWING MUST BE UPDATED TOO 
-$n_db_params        =      8;   # number of parameters in database
+$n_db_params               =      9;   # number of parameters in database
 ### edit the above if changing/adding/removing the db parameters
 ### END OF CUSTOMIZABLE PARAMETERS +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
 # consistency checks on the above
 if ($thres_up < $thres_dn){
-	  die("Error: thres_up=%f < thres_dn=%f (they can be equal)\ndie\n",$thres_up < $thres_dn); 
+	  die("Error: slopes thres_up=%f < thres_dn=%f (they can be equal)\ndie\n",$thres_up < $thres_dn); 
 }
 
 
@@ -340,19 +391,26 @@ open(RDF,"$rundata_fn")    || die "Can't open  input file: $rundata_fn, $!\n";
 print "\nsucessfully opened rundata file $rundata_fn\n" if ($verbose);
 read_rundata();
 close(RDF); 
+print "rundata_start_epoch  = @rundata_start_epoch\n" if ($verbose);
+print "rundata_end_epoch    = @rundata_end_epoch\n" if ($verbose);
 print "rundata_start_t      = @rundata_start_t\n" if ($verbose);        
 print "rundata_end_t        = @rundata_end_t\n" if ($verbose);        
 print "rundata_thres_gap    = @rundata_thres_gap\n" if ($verbose);        
-### check consistency of rundata time ranges
+### check consistency of rundata time ranges (any variable can be used to obtain highest index)
+### comparison using epoch, reporting using (human) _t
 for ($i=0;$i<=$#rundata_start_t;$i++){
     # check 1: start(i) must be < end(i)
-    if($rundata_start_t[$i] >= $rundata_end_t[$i]){
-        die("ERROR in rundata file $rundata_fn:\nstart time $rundata_start_t[$i] >= end time $rundata_end_t[$i]\n");
+    if($rundata_start_epoch[$i] >= $rundata_end_epoch[$i]){
+        $msg = sprintf("ERROR in rundata file %s: start time %s >= end time %s (comparing epochs)\n",
+                       $rundata_fn,$rundata_start_t[$i],$rundata_end_t[$i]);
+        die($msg);
     }
     # check 2: end(i) must be < start(i+1)
     if($i < $#rundata_start_t){
-        if($rundata_end_t[$i] >= $rundata_start_t[$i+1]){
-            die("ERROR in rundata file $rundata_fn:\nend time $rundata_end_t[$i] >= start time $rundata_start_t[$i+1]\n");
+        if($rundata_end_epoch[$i] >= $rundata_start_epoch[$i+1]){
+            $msg = sprintf("ERROR in rundata file %s: end time %s >= next start time %s (comparing epochs)\n",
+                           $rundata_fn,$rundata_end_t[$i],$rundata_start_t[$i+1]);
+            die($msg);
         }
     }
 }
@@ -364,40 +422,51 @@ open(DBF,"$db_fn")    || die "Can't open  input file: $db_fn, $!\n";
 print "\nsucessfully opened db file $db_fn\n" if ($verbose);
 read_db();
 close(DBF); 
-print "db_start_t              = @db_start_t\n" if ($verbose);
-print "db_end_t                = @db_end_t\n" if ($verbose);
-print "db_n_spate_thres_up     = @db_n_spate_thres_up\n" if ($verbose);
-print "db_spate_thres_up       = @db_spate_thres_up\n" if ($verbose);
-print "db_n_not_in_spate_req   = @db_n_not_in_spate_req\n" if ($verbose);
-print "db_dh_local_min         = @db_dh_local_min\n" if ($verbose);
-print "db_n_thres_up           = @db_n_thres_up\n" if ($verbose);
-print "db_thres_up             = @db_thres_up\n" if ($verbose);
-print "db_n_thres_dn           = @db_n_thres_dn\n" if ($verbose);
-print "db_thres_dn             = @db_thres_dn\n" if ($verbose);
+print "db_start_epoch               = @db_start_epoch\n" if ($verbose);
+print "db_end_epoch                 = @db_end_epoch\n" if ($verbose);
+print "db_start_t                   = @db_start_t\n" if ($verbose);
+print "db_end_t                     = @db_end_t\n" if ($verbose);
+## RETIRED 160417 ## print "db_n_spate_thres_up     = @db_n_spate_thres_up\n" if ($verbose);
+print "db_n_recent_to_consider      = @db_n_recent_to_consider\n" if ($verbose);
+print "db_n_slope_up_above_thres    = @db_n_slope_up_above_thres\n" if ($verbose);
+print "db_spate_thres_up            = @db_spate_thres_up\n" if ($verbose);
+print "db_n_not_in_spate_req        = @db_n_not_in_spate_req\n" if ($verbose);
+print "db_dq_local_min              = @db_dq_local_min\n" if ($verbose);
+print "db_n_thres_up                = @db_n_thres_up\n" if ($verbose);
+print "db_thres_up                  = @db_thres_up\n" if ($verbose);
+print "db_n_thres_dn                = @db_n_thres_dn\n" if ($verbose);
+print "db_thres_dn                  = @db_thres_dn\n" if ($verbose);
 ### edit the above if changing/adding/removing the db parameters
 
-### check consistency of db time ranges
+### check consistency of db time ranges (any variable can be used to obtain highest index)
+### comparison using epoch, reporting using (human) _t
 for ($i=0;$i<=$#db_start_t;$i++){
     # check 1: start(i) must be < end(i)
-    if($db_start_t[$i] >= $db_end_t[$i]){
-        die("ERROR in DB file $db_fn:\nstart time $db_start_t[$i] >= end time $db_end_t[$i]\n");
+    if($db_start_epoch[$i] >= $db_end_epoch[$i]){
+        $msg = sprintf("ERROR in db file %s: start time %s >= end time %s (comparing epochs)\n",
+                       $db_fn,$db_start_t[$i],$db_end_t[$i]);
+        die($msg);
     }
     # check 2: end(i) must be < start(i+1)
     if($i < $#db_start_t){
-        if($db_end_t[$i] >= $db_start_t[$i+1]){
-            die("ERROR in DB file $db_fn:\nend time $db_end_t[$i] >= start time $db_start_t[$i+1]\n");
+        if($db_end_epoch[$i] >= $db_start_epoch[$i+1]){
+            $msg = sprintf("ERROR in db file %s: end time %s >= next start time %s (comparing epochs)\n",
+                           $db_fn,$db_end_t[$i],$db_start_t[$i+1]);
+            die($msg);
         }
     }
 }
 print "No time inconsistencies found in DB file $db_fn of interest to sampling point $SP and observable $Obs\n\n";
 
-exit;
+# a convenient stop when debugging rundata + DB mods:
+# exit;
+
 
 #### CREATE I/O FILE NAMES
 # this was for debugging
 # $fnam="motidata_20110729_0700.txt";
 # $tnam="motidata_20110729_0700.tmp";
-# $dnam="motidata_20110729_0700.dat"G
+# $dnam="motidata_20110729_0700.dat";
 $tnam   = $rfn . ".tod";  # IDF
 $enam   = $rfn . ".csv";  # ODF
 $dnam   = $rfn . ".dat";  # ODDF
@@ -426,32 +495,36 @@ $sumnam = $rfn . ".sum";  # OSF   - summary file
 # close(IDF);
 # close(ODF);
 
-open(IDF,"$tnam")    || die "Can't open  input file: $tnam, $!\n";  
-open(ODF,">$enam")   || die "Can't open output file: $enam, $!\n";  
-open(ODDF,">$dnam")  || die "Can't open output file: $dnam, $!\n";  
-open(ODSF,">$snam")  || die "Can't open output file: $snam, $!\n";  
-open(ODSLF,">$slnam")|| die "Can't open output file: $slnam, $!\n";  
-open(ODGF,">$gnam")  || die "Can't open output file: $gnam, $!\n";  
-open(OSF,">$sumnam") || die "Can't open output file: $sumnam, $!\n";  
+open(IDF,  "$tnam")    || die "Can't open  input file: $tnam, $!\n";  
+open(ODF,  ">$enam")   || die "Can't open output file: $enam, $!\n";  
+open(ODDF, ">$dnam")   || die "Can't open output file: $dnam, $!\n";  
+open(ODSF, ">$snam")   || die "Can't open output file: $snam, $!\n";  
+open(ODSLF,">$slnam")  || die "Can't open output file: $slnam, $!\n";  
+open(ODGF, ">$gnam")   || die "Can't open output file: $gnam, $!\n";  
+open(OSF,  ">$sumnam") || die "Can't open output file: $sumnam, $!\n";  
 # open(ODTF,">$testnam") || die "Can't open output file: $testnam, $!\n";  
 
 # print out some headers
-printf (ODGF "threshold for detection of gaps = %d min\n",$thres_gap);
-
-printf (ODSF "Legend:\nnspat tsls_d  _____cdyr______ __hT(m)_  \n--- End of Legend ---\n");
-
-printf (ODSLF "Legend:\nns\# nspat (pt _____ID): YYYY MM DD hh mm  tsls_d  _____cdyr______ __hT(m)_  ");
-printf (ODSLF "pk: _____cdyr______ hTmax(m)  _dhT(m)  _Dddoy");
-printf (ODSLF "\n                                                                            ");
-printf (ODSLF "tr: _____cdyr______ hTmin(m)  _dhT(m)  ddoy_at_min\n--- End of Legend ---\n");
-
-printf (ODDF "Legend:\nMM DD YYYY hh mm  __hT(m)_ _____cdyr______ __cdyr-YY0__ __ddoy_  ");
-printf (ODDF " _dhdt_mph dhdt_cmpm");
-printf (ODDF "  _DeltaSL_  From here on, a galore of 1/0 flags, in this order:\n");
+printf (ODDF "Legend:\nYYYYMMDD hh:mm  ___qty__  ___epoch__  ");  #_____cdyr______ __cdyr-YY0__ __ddoy_  ");
+printf (ODDF "_dqdt_qph ");   # dqdt_cmpm");
+# printf (ODDF "  _DeltaSL_  From here on, a galore of 1/0 flags, in this order:\n");
+printf (ODDF "  From here on, a galore of 1/0 flags, in this order:\n");
+printf (ODDF "above_thres new_spate  ");
+printf (ODDF "9.2E is DSL (Delta of avge slopes as (ASL1-ASL2)/ASL1)\n");
 printf (ODDF "up_met is_max  dn_met is_min  ");
-printf (ODDF "  +7.1f: dh_local ");
-printf (ODDF "  above_thres in_spate in_spate_last in_spate_last_but1 in_spate_last_but2");
-printf (ODDF "  n_not_in_spate new_spate\n--- End of Legend ---\n");
+printf (ODDF "+7.1f: dq_local ");
+printf (ODDF "above_thres in_spate in_spate_last in_spate_last_but1 in_spate_last_but2");
+printf (ODDF "n_not_in_spate new_spate\n--- End of Legend ---\n");
+
+printf (ODSF "Legend:\nnspat _tsls_d  ___epoch__ ___qty__  \n--- End of Legend ---\n");
+
+printf (ODSLF "Legend:\nns\# nspat (pt _____ID): YYYYMMDD hh:mm  _tsls_d  ___epoch__ ___qty__  ");
+printf (ODSLF "pk: YYYYMMDD hh:mm _qtymax_  _dqty__  Ddays+");
+printf (ODSLF "\n                                                                            ");
+printf (ODSLF "tr: YYYYMMDD hh:mm _qtymin_  _dqty__  Ddays-\n");
+printf (ODSLF "--- End of Legend ---\n");
+
+printf (ODGF "threshold for detection of gaps = %d min\n",$thres_gap);
 
 
 #### PROCESS INPUT DATA FILE
@@ -459,26 +532,26 @@ printf (ODDF "  n_not_in_spate new_spate\n--- End of Legend ---\n");
 ### GLOBAL INITS (ok, a bit of a misnomer)
 ## Do **not** change those unless you know what you are doing
 # scan for absolute extrema - start by setting impossible values
-$lvl_abs_min        = +60;
-$lvl_abs_max        = -20;
-$lvl_abs_min_cdyr   =   0.;
-$lvl_abs_max_cdyr   =   0.;
-$lvl_abs_min_ymdhs  =   0;
-$lvl_abs_max_ymdhs  =   0;
-$dhdt_abs_min       = +20;
-$dhdt_abs_max       = -20 ;
-$dhdt_abs_min_cdyr  =   0.;
-$dhdt_abs_max_cdyr  =   0.;
-$dhdt_abs_min_ymdhs =   0;
-$dhdt_abs_max_ymdhs =   0;
-$dhdt_abs_min_lvl   = +60.;
-$dhdt_abs_max_lvl   = -20.;
+$qty_abs_min        = +60;
+$qty_abs_max        = -20;
+$qty_abs_min_epoch  =   0.;
+$qty_abs_max_epoch  =   0.;
+$qty_abs_min_YMDhm  =   0;
+$qty_abs_max_YMDhm  =   0;
+$dqdt_abs_min       = +20;
+$dqdt_abs_max       = -20 ;
+$dqdt_abs_min_epoch =   0.;
+$dqdt_abs_max_epoch =   0.;
+$dqdt_abs_min_YMDhm =   0;
+$dqdt_abs_max_YMDhm =   0;
+$dqdt_abs_min_qty   = +60.;
+$dqdt_abs_max_qty   = -20.;
 
 
 #### INITs for peak search -- this section has no parameters to modify. 
 ## Do **not** change those unless you know what you are doing
-$cdyr_last=0;
-$lvl_last=0;
+$epoch_last=0;
+$qty_last=0;
 $ndata=0;
 $ngap=0;
 $gap_max=$thres_gap;
@@ -489,10 +562,10 @@ $n_not_in_spate=0;
 $in_spate_last=0;
 $in_spate_last_but1=0;
 $in_spate_last_but2=0;
-$dh_max=0;
+$dq_max=0;
 $new_spate=0;
-$last_spate_ddoy=0;
-$dhdt_mph_last=0;
+$last_spate_epoch=0;
+$dqdt_qph_last=0;
 $YY_last=0;
 $is_max=9;
 $is_min=9;
@@ -517,19 +590,27 @@ while(<IDF>) {
     $DD=$3;
     $hh=$4;
     $mm=$5;
-    $lvl=$6;
-    # print "$YY$MM$DD $hh:$mm lvl=$lvl lvl_last=$lvl_last\n";
+    $qty=$6;
+    # print "$YY$MM$DD $hh:$mm qty=$qty qty_last=$qty_last\n";
     
-    # cdyr calculations                             # #BUG6# looms here
-    $cdoy=&DoYR($DD,$MM,$YY);                       # current day of the year
-    $ddoy=$cdoy + (($mm/60.)+$hh)/24.;              # real time in units of day of the year
-	  $dy=&dysize($YY);                               # days in current year
-	  $dy_last=&dysize($YY_last);                     # days in "the year of the last (previous) data point"
-	  $cdyr=$YY+( (($mm/60.)+$hh)/24. + $cdoy )/$dy;  # Digital (real) year coordinate <==this is #BUG6#
-    # print "cdoy=$cdoy, dy=$dy, cdyr=$cdyr, cdyr_last=$cdyr_last\n";
+    ### 160417 moved from Gnarfer DoYR, dysize etc.. to epoch
+    # # cdyr calculations                             # #BUG6# looms here  ***done*** obsoleted 160417
+    # $cdoy=&DoYR($DD,$MM,$YY);                       # current day of the year
+    # $ddoy=$cdoy + (($mm/60.)+$hh)/24.;              # real time in units of day of the year
+	  # $dy=&dysize($YY);                               # days in current year
+	  # $dy_last=&dysize($YY_last);                     # days in "the year of the last (previous) data point"
+	  # $cdyr=$YY+( (($mm/60.)+$hh)/24. + $cdoy )/$dy;  # Digital (real) year coordinate <==this is #BUG6#  ***done*** obsoleted 160417
+    # # print "cdoy=$cdoy, dy=$dy, cdyr=$cdyr, cdyr_last=$cdyr_last\n";
+
+    # replaced with epoch: 
+    $dt = DateTime->new(year => $YY, month => $MM, day => $DD, hour => $hh, minute => $mm);
+    $epoch = $dt->epoch();                            ### ***of current point ***
+    # have some merci for humans:
+    $datetime = sprintf ("%4d%02d%02d %02d%02d",$YY,$MM,$DD,$hh,$mm);
 
     $ndata++;
     
+    ### 160417 I don't think this is necessary any more, using epoch
     if($ndata == 1){
     	  $YY0=$YY;
     }
@@ -538,59 +619,109 @@ while(<IDF>) {
 	  # $blah=<STDIN>; 
 	
   	# update abs extrema if applicable
-	  if($lvl > $lvl_abs_max) {
-        $lvl_abs_max = $lvl;
-        $lvl_abs_max_cdyr = $cdyr;		
-        $lvl_abs_max_ymdhs = sprintf("%02d%02d%02d %02d:%02d",$YY,$MM,$DD,$hh,$mm);		
+	  if($qty > $qty_abs_max) {
+        $qty_abs_max = $qty;
+        $qty_abs_max_epoch = $epoch;		
+        $qty_abs_max_YMDhm = sprintf("%4d%02d%02d %02d%02d",$YY,$MM,$DD,$hh,$mm);		
 	  }
-        if($lvl < $lvl_abs_min) {
-        $lvl_abs_min = $lvl;
-        $lvl_abs_min_cdyr = $cdyr;
-        $lvl_abs_min_ymdhs = sprintf("%02d%02d%02d %02d:%02d",$YY,$MM,$DD,$hh,$mm);		
+        if($qty < $qty_abs_min) {
+        $qty_abs_min = $qty;
+        $qty_abs_min_epoch = $epoch;
+        $qty_abs_min_YMDhm = sprintf("%4d%02d%02d %02d%02d",$YY,$MM,$DD,$hh,$mm);		
 	  }
 	
-	  # running min/max lvls
+	  # running min/max qtys
     if($ndata == 1) {
 		    &setmax();
 		    &setmin();
     } else {
-        if($lvl > $lvl_max) {
+        if($qty > $qty_max) {
 			      &setmax();
         }
-        if($lvl < $lvl_min) {
+        if($qty < $qty_min) {
 			      &setmin();
         }
     }
 
 	  # yet another local variable, will store 5 (highest index 4)
-	  push(@dh_local_vals, $lvl);  
+	  push(@dq_local_vals, $qty);  
 	  
-	  ### Obtain parameters form DB and rundata files (yes this is doe for every point - suboptimal)
-	  ## rundata first
+	  ### Obtain parameters from rundata and DB files +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+	  ### --- use point of rundata+DB---
+	  ### The implementation is suboptimal in a number of ways:
+	  ### 1) the test against rd/db variables is done for every point
+	  ### 2) changing db parameters while associated variables are being used in a Bad Idea.
+    ###    This could cause exceptions at execution time and/or make calculations
+    ###    meaningless, mostly because the depth of stacks could change.
+	  ###    => a safe implementation would change DB values only between blocks of data
+	  ###    => if changing DB valus within a block is unavoidable, proceed with care !
+
+	  ## 1) rundata
     # # for testing during commissionning: 
-	  # print "\n crdyr=$cdyr;  thres_gap b4 = $thres_gap, ";
-	  # check 1: $cdyr is within time extrema in file
-	  if ($cdyr < $rundata_start_t[0] || $cdyr > $rundata_end_t[$#rundata_end_t]){
-	      die("ERROR current time $cdyr out of scope of file $rundata_fn:\n");
+	  # print "\n epoch=$epoch;  thres_gap b4 = $thres_gap, ";
+	  # check 1: $epoch is within time extrema in file
+	  if ($epoch < $rundata_start_epoch[0] || $epoch > $rundata_end_epoch[$#rundata_end_t]){
+	      die("ERROR current point's time (epoch $epoch = $datetime) out of scope of file $rundata_fn:\n");
 	  }
 	  $found=0;
-	  for ($i=0;$i<=$#rundata_start_t;$i++){
-        # check 2: is $cdyr in current interval ?
-        if($rundata_start_t[$i] <= $cdyr && $cdcyr <= $rundata_end_t[$i]){
+	  for ($i=0;$i<=$#rundata_start_epoch;$i++){
+        # check 2: is $epoch in current interval ?
+        if($rundata_start_epoch[$i] <= $epoch && $epoch <= $rundata_end_epoch[$i]){
             $found=1;
             $thres_gap = $rundata_thres_gap[$i];
             # # for testing during commissionning: 
             # print " [found match in rd block $i ] ";
             # goto AFTER-RD-LOOP;
             ## this is a hack - to get out of the loop
-            $i=$#rundata_start_t;
+            ## $i=$#rundata_start_t;
+            ## ahem - there is a builtin for that:
+            last;
         }
     }
     # AFTER-RD-LOOP:  # this generates and error, and 'Learning Perl' tells me to never use 'goto' ..
-    die("ERROR current time $cdyr fell through the cracks of file $rundata_fn:\n") if ($found == 0);
+    die("ERROR current point's time (epoch $epoch = $datetime) fell through the cracks of file $rundata_fn:\n") if ($found == 0);
     # # for testing during commissionning: 
 	  # print " aft = $thres_gap\n";
     # $blah=<STDIN>;
+    
+	  ## 2) DB next
+    # # for testing during commissionning: 
+	  # print "\n epoch=$epoch;  VARTBD b4 = $VARTBD, ";
+	  # check 1: $epoch is within time extrema in file
+	  if ($epoch < $db_start_epoch[0] || $epoch > $db_end_epoch[$#db_end_t]){
+	      die("ERROR current point's time (epoch $epoch = $datetime) out of scope of file $db_fn:\n");
+	  }
+	  $found=0;
+	  for ($i=0;$i<=$#db_start_epoch;$i++){
+        # check 2: is $epoch in current interval ?
+        if($db_start_epoch[$i] <= $epoch && $epoch <= $db_end_epoch[$i]){
+            $found=1;
+            # $n_spate_thres_up         = $db_n_spate_thres_up[$i];
+            $n_recent_to_consider     = $db_n_recent_to_consider[$i];
+            $n_slope_up_above_thres   = $db_n_slope_up_above_thres[$i];
+            $spate_thres_up           = $db_spate_thres_up[$i];
+            $n_not_in_spate_req       = $db_n_not_in_spate_req[$i];
+            $dq_local_min             = $db_dq_local_min[$i];
+            $n_thres_up               = $db_n_thres_up[$i];
+            $thres_up                 = $db_thres_up[$i];
+            $n_thres_dn               = $db_n_thres_dn[$i];
+            $thres_dn                 = $db_thres_dn[$i];
+            # # for testing during commissionning: 
+            # print " [found match in rd block $i ] ";
+            # goto AFTER-RD-LOOP;
+            ## this is a hack - to get out of the loop
+            ## $i=$#db_start_t;
+            ## ahem - there is a builtin for that:
+            last;
+        }
+    }
+    # AFTER-RD-LOOP:  # this generates and error, and 'Learning Perl' tells me to never use 'goto' ..
+    die("ERROR current point's time (epoch $epoch = $datetime) fell through the cracks of file $db_fn:\n") if ($found == 0);
+    # # for testing during commissionning: 
+	  # print " aft = $VARTBD\n";
+    # $blah=<STDIN>;
+    ### edit the above if changing/adding/removing the db parameters
+
 
     # Rate of change calculations
     #     If not first point read, should write calculations from "previous"
@@ -601,23 +732,33 @@ while(<IDF>) {
     # the signs are not corrected because both negatives cancel out.
     if($ndata > 1){
         # calc rates
-        $dh_m=($lvl-$lvl_last);
-        $dh_cm=100*($lvl-$lvl_last);
+        # $dh_m=($lvl-$lvl_last);
+        $dq=($qty-$qty_last); # 
+        # 160417: discard all calculations in cm
+        # $dq_cm=100*($qty-$qty_last);
+        
         # corrected to the proper formula: the number of days in the years of the previous
-        # data point is what matters
-		    $dt_d=$dy_last*($cdyr-$cdyr_last);
+        # data point is what matters ## 160417: what does that sentence mean, exactly ?
+		    # $dt_d=$dy_last*($epoch-$epoch_last)/86400.;  ### this looks wrong now, what's that dy_last here ?  ### MUST CHECK ###
+		    $dt_d=($epoch-$epoch_last)/86400.;  ### epoch replaced ddoy here, not cdyr  ### MUST CONFIRM ###
         $dt_h=$dt_d*24;
         $dt_min=$dt_h*60;
-        # print "cdyr_last=$cdyr_last cdyr=$cdyr, dt_min=$dt_min\n";
+        # print "epoch_last=$epoch_last epoch=$epoch, dt_min=$dt_min\n";
         # $answ = <STDIN>;
-        if($dt_min == 0) {
-            $dhdt_cpd=0;
-            $dhdt_mph=0;
-            $dhdt_cpm=0;
+        # 160417: replacement of cdyr and ddoy by epoch implies using only units of 'q'uantity per hour
+        # if($dt_min == 0) {
+        #     $dhdt_cpd=0;
+        #     $dqdt_qph=0;
+        #     $dhdt_cpm=0;
+        # } else{
+        #     $dhdt_cpd=$dh_cm/$dt_d;
+        #     $dqdt_qph=$dh_m/$dt_h;
+        #     $dhdt_cpm=$dh_cm/$dt_min;
+        # }
+        if($dt_h == 0) {
+            $dqdt_qph=0;   # technically this should be NaN
         } else{
-            $dhdt_cpd=$dh_cm/$dt_d;
-            $dhdt_mph=$dh_m/$dt_h;
-            $dhdt_cpm=$dh_cm/$dt_min;
+            $dqdt_qph=$dq/$dt_h;
         }
     	  # use deltas above to check for gap
     	  if($dt_min > $thres_gap){	
@@ -635,17 +776,17 @@ while(<IDF>) {
             # there is no gap
             # update abs extrema if applicable
             # NEW 150907 - only do so if dt_min < $thres_gap, i.e. do not report extrema calculated over gaps !
-            if($dhdt_mph > $dhdt_abs_max) {
-                $dhdt_abs_max = $dhdt_mph;
-                $dhdt_abs_max_cdyr = $cdyr;
-                $dhdt_abs_max_lvl = $lvl;	
-                $dhdt_abs_max_ymdhs	= sprintf("%02d%02d%02d %02d:%02d",$YY,$MM,$DD,$hh,$mm);
+            if($dqdt_qph > $dqdt_abs_max) {
+                $dqdt_abs_max       = $dqdt_qph;
+                $dqdt_abs_max_epoch = $epoch;
+                $dqdt_abs_max_qty   = $qty;	
+                $dqdt_abs_max_YMDhm	= sprintf("%02d%02d%02d %02d:%02d",$YY,$MM,$DD,$hh,$mm);
             }
-            if($dhdt_mph < $dhdt_abs_min) {
-                $dhdt_abs_min = $dhdt_mph;
-                $dhdt_abs_min_cdyr = $cdyr;		
-                $dhdt_abs_min_lvl = $lvl;
-                $dhdt_abs_min_ymdhs	= sprintf("%02d%02d%02d %02d:%02d",$YY,$MM,$DD,$hh,$mm);
+            if($dqdt_qph < $dqdt_abs_min) {
+                $dqdt_abs_min = $dqdt_qph;
+                $dqdt_abs_min_epoch = $epoch;		
+                $dqdt_abs_min_qty = $qty;
+                $dqdt_abs_min_YMDhm	= sprintf("%02d%02d%02d %02d:%02d",$YY,$MM,$DD,$hh,$mm);
             }
         } # end of checks if there is a gap or not
     	  # check for data overlap
@@ -657,7 +798,8 @@ while(<IDF>) {
             $novlap++;
         }
         # for spate detector - define status of current slope CPM
-        if($dhdt_cpm > $spate_thres_up) {
+        # if($dhdt_cpm > $spate_thres_up) {   ### NEW 160417 ### going to qph changes the unit of $spate_thres_up
+        if($dqdt_qpm > $spate_thres_up) {
             $above_thres = 1;
             # do not that now, must use $n_above_thres for previous pt, i.e. *before* updating it
             # $n_not_above_thres=0;
@@ -678,15 +820,18 @@ while(<IDF>) {
         push(@last_DD_vals, $DD);
         push(@last_hh_vals, $hh);
         push(@last_mm_vals, $mm);
-        push(@last_lvl_vals, $lvl);
-        push(@last_cdyr_vals, $cdyr);
-        push(@last_ddoy_vals, $ddoy);
+        push(@last_qty_vals, $qty);
+        # following two lines RETIRED 160417 and replaced by one just after
+        # push(@last_cdyr_vals, $cdyr);
+        # push(@last_ddoy_vals, $ddoy);
+        push(@last_epoch_vals, $epoch);
         # try something different
-        push(@ttm,$cdyr);
-        push(@ll,$lvl);
+        # push(@ttm,$cdyr);
+        push(@ttm,$epoch);
+        push(@ll,$qty);
                 
-        # for peak detector - define status of current slope MPH
-        if($dhdt_mph > $thres_up) {
+        # for peak detector - define status of current slope QTY/H
+        if($dqdt_qph > $thres_up) {
             $up_met = 1;
         } else {
             $up_met = 0;
@@ -695,8 +840,8 @@ while(<IDF>) {
         push(@last_slopeup_vals, $up_met);
         print "  -- max idx in last_slopeup_vals = $#last_slopeup_vals -- @last_slopeup_vals\n" if ($verbose);
 
-        # for through detector - define status of current slope MPH
-        if($dhdt_mph <= $thres_dn) {
+        # for through detector - define status of current slope QTY/H
+        if($dqdt_qph <= $thres_dn) {
             $dn_met = 1;
         } else {
             $dn_met = 0;
@@ -706,33 +851,34 @@ while(<IDF>) {
         print "  -- min idx in last_slopedn_vals = $#last_slopedn_vals -- @last_slopedn_vals\n" if ($verbose);
         
         # for spate detector: this test ensures that at least as many data points already 
-        # have been read, as is required by $n_spate_thres_up
-        if($ndata > $n_spate_thres_up) {
+        # have been read, as is required by $n_recent_to_consider
+        if($ndata > $n_recent_to_consider) {
             # First algo tested
             # following check only returns 1 if **all** elements in last_thres_vals 
             # are 1 (above threshold), including the current one just read. Thus it
             # will trigger on the first point that makes $n_thres_sup consecutive above threshold
             # $in_spate=1;
-            # for($i=0;$i<$n_spate_thres_up;$i++){
+            # for($i=0;$i<$n_recent_to_consider;$i++){
             #	    $in_spate *= $last_thres_vals[$i];
             # }
             ## try algo "3 out of 4" - assuming n_spate_thres is already 4
             $sum=0;
-            for($i=0;$i<$n_spate_thres_up;$i++){
+            for($i=0;$i<$n_recent_to_consider;$i++){
                 $sum += $last_thres_vals[$i];
             }
             # get local change of level **in mm* - need current + previous 4 (not 3) points
             # Note! I don't understand the '+2' (and why not just '+1') - this is *bad*
-            if($ndata > $nspate_thres_up+3){
-                $dh_local = 1000.*($dh_local_vals[$n_spate_thres_up]-$dh_local_vals[0]);
+            if($ndata > $n_recent_to_consider){             #BUG-R# (took off the "+3" on 160417 that was in there)
+                # $dq_local = 1000.*($dq_local_vals[$n_recent_to_consider]-$dq_local_vals[0]);  ### 1000 multipliers was to get mm, removed 160417
+                $dq_local = ($dq_local_vals[$n_recent_to_consider]-$dq_local_vals[0]);
             }
-            # print "highest index in dh_local_vals = $#dh_local_vals\n"; # says 3 when $n_spate_thres_up=4
+            # print "highest index in dq_local_vals = $#dq_local_vals\n"; # says 3 when $n_spate_thres_up=4
             # i.e. 3 is the highest for a total of 4 elements (as expected)
             # added 140304 requirement that 1st and last are 1
             # this is to avoid triggering on "zeroes-1-1-1-zeroes"
-            if($sum >= 3 && $last_thres_vals[0] == 1 
-                         && $last_thres_vals[$n_spate_thres_up-1] == 1
-                         && $dh_local >= $dh_local_min){
+            if($sum >= $n_slope_up_above_thres && $last_thres_vals[0] == 1 
+                         && $last_thres_vals[$n_recent_to_consider-1] == 1
+                         && $dq_local >= $dq_local_min){
                 $in_spate=1;
             } else {
                 $in_spate=0;
@@ -753,28 +899,34 @@ while(<IDF>) {
             } else {
         	      $new_spate=0;
             }
-            # if new_spate, conclude scanning for lvl_max and start new scan
+            # if new_spate, conclude scanning for qty_max and start new scan
             # (means peak must have been passed, restart!)
             # CONT HERE
             if($new_spate){
-                # $lvl_delta = $lvl_max - $lvl;
+                # $qty_delta = $qty_max - $qty;
                 # $ddoy_delta = $ddoy_max - $ddoy;
                 # if($ddoy_delta < 0) {
                 #     $ddoy_delta += &dysize($YY-1);
                 # }
                 # set references for ***start of spate** (using "at last min" was *wrong*)
-                $lvl_base=$last_lvl_vals[0];
-                $ddoy_base=$last_ddoy_vals[0];
+                $qty_base=$last_qty_vals[0];
+                # $ddoy_base=$last_ddoy_vals[0];  ### NOTE 160417: replacing ddoy with epoch changes the units by factor 86400 !
+                $epoch_base=$last_epoch_vals[0];
+                # reminder for self on 160417: tsls_d = time since last spate (days)
                 if($nspate == 1){
                     $tsls_d=0;
                     $tsls_d_max=0;
                 } else {
-                    $tsls_d=$ddoy_base-$last_spate_ddoy;
-                    if($tsls_d < 0) {
-                        $tsls_d += &dysize($YY-1);
-                    }
+                    # $tsls_d=$ddoy_base-$last_spate_ddoy;
+                    $tsls_d = ($epoch_base-$last_spate_epoch)/86400.;
+                    ## Obsoleted by replacing ddoy with epoch ? This was adding days in last year once going into next
+                    # if($tsls_d < 0) {
+                    #     $tsls_d += &dysize($YY-1);
+                    # }
+                    ### NOT SURE ABOUT THSI ONE THEN        ### CHECK THIS OUT ###
                     if($tsls_d > $tsls_d_max) {
                         $tsls_d_max = $tsls_d;
+                        ### Odd that I did nto want to record *when* this maximum was found ..
                     }
                 }
                 # output in two steps: 1 (here) - the start of the spate (next, 2: when peak found_)
@@ -791,7 +943,7 @@ while(<IDF>) {
                 # 		printf (ODSLF "\n                                                                            ");
                 # 		printf (ODSLF "tr: _____cdyr______ hTmin(m)  _dhT(m)  ddoy_at_min\n--- End of Legend ---\n");
                 # 		printf (ODDF "Legend:\nMM DD YYYY hh mm  __hT(m)_ _____cdyr______ __cdyr-YY0__ __ddoy_  ");
-                # 		printf (ODDF " _dhdt_mph dhdt_cmpm");
+                # 		printf (ODDF " _dqdt_qph dhdt_cmpm");
                 # 		printf (ODDF "  _DeltaSL_  For here on a galore of 1/0 flags, in this order:\n");
                 # 		printf (ODDF "up_met is_max  dn_met is_min  ");
                 # 		printf (ODDF "  +7.1f: dh_local ");
@@ -801,22 +953,22 @@ while(<IDF>) {
                 printf (STDOUT "New spate \# %5d (pt %7d) on %4d%02d%02d %02d%02d (after %6.3f days) h=%+7.3fm ",
                                 $nspate,$ndata,
                                 $last_YY_vals[0],$last_MM_vals[0],$last_DD_vals[0],$last_hh_vals[0],$last_mm_vals[0],
-                                $tsls_d, $last_lvl_vals[0]);
-                printf (ODSF "%5d %6.3f  %15.10f %+8.4f  ",
+                                $tsls_d, $last_qty_vals[0]);
+                printf (ODSF "%5d %7.3f  %10d %+8.4f  ",
                               $nspate,
-                              $tsls_d, $last_cdyr_vals[0],$last_lvl_vals[0]);
+                              $tsls_d, $last_epoch_vals[0],$last_qty_vals[0]);
                               # printf (ODSF "Legend:\nnspat tsls_d  _____cdyr______ __hT(m)_  \n");
-                printf (ODSLF "ns\# %5d (pt %7d): %4d %02d %02d %02d %02d  %6.3f  %15.10f %+8.4f  ",
+                printf (ODSLF "ns\# %5d (pt %7d): %4d%02d%02d %02d:%02d  %7.3f  %10d %+8.4f  ",
                               $nspate,$ndata,
                               $last_YY_vals[0],$last_MM_vals[0],$last_DD_vals[0],$last_hh_vals[0],$last_mm_vals[0],
-                              $tsls_d, $last_cdyr_vals[0],$last_lvl_vals[0]);
+                              $tsls_d, $last_epoch_vals[0],$last_qty_vals[0]);
                 # printf (ODSFL "Legend:\nnspat (pt _____ID): YYYY MM DD hh mm  tsls_d  _____cdyr______ __hT(m)_  ");
                 # printf (ODTF "%+8.4f\n",
-                # 	$lvl_delta);
+                # 	$qty_delta);
                 # *do not* reset min to current value, so as to scan for new max from the min -- this was wrong
                 # 140305: why?
                 # &setmax();
-                $last_spate_ddoy=$ddoy_base;
+                $last_spate_epoch=$epoch_base;
             } # if newspate
             # safer now to clean arrays at the bottom
             shift(@last_thres_vals);
@@ -825,14 +977,15 @@ while(<IDF>) {
             shift(@last_DD_vals);
             shift(@last_hh_vals);
             shift(@last_mm_vals);
-            shift(@last_lvl_vals);
-            shift(@last_cdyr_vals);
-            shift(@last_ddoy_vals);
+            shift(@last_qty_vals);
+            # shift(@last_cdyr_vals);
+            # shift(@last_ddoy_vals);
+            shift(@last_epoch_vals);
             # Note! I don't understand the '+2' (and why not just '+1') - this is *bad*
             # if($ndata > $nspate_thres_up+5){
-        		shift(@dh_local_vals);
+        		shift(@dq_local_vals);
             # }
-        } # if ndata > n_spate_thres_up
+        } # if ndata > n_recent_to_consider
         
         ## something different - un-dot-product -> stupid, dynamic range will mess it up
         if($ndata > 8){
@@ -863,7 +1016,7 @@ while(<IDF>) {
             for($i=0;$i<7;$i++){
                 $dxi=365*($ttm[$i+1]-$ttm[$i]);
                 $dyi=$ll[$i+1]-$ll[$i];
-                die("Error at ndata=$ndata crdy=$cdyr: dxi=0 for i=$i\ndie\n") if ($dxi == 0);
+                die("Error at ndata=$ndata epoch=$epoch: dxi=0 for i=$i\ndie\n") if ($dxi == 0);
                 $sli=($dyi)/($dxi);
                 if($i<5){
                     $ASL1 += $sli;
@@ -898,24 +1051,28 @@ while(<IDF>) {
             }
             # then clean array at the bottom
             shift(@last_slopeup_vals);
-            printf (STDOUT " ndata=%5d  lvl=%+7.4f  dhdt_mph=%+8.4f  peak_cond_met=%1d nspate=%1d  -- peak conds: ",
-                            $ndata,$lvl,$dhdt_mph,$peak_cond_met,$nspate)  if ($verbose);
-            if($dhdt_mph <= $thres_up && $peak_cond_met == 1 
+            printf (STDOUT " ndata=%5d  qty=%+7.4f  dqdt_qph=%+8.4f  peak_cond_met=%1d nspate=%1d  -- peak conds: ",
+                            $ndata,$qty,$dqdt_qph,$peak_cond_met,$nspate)  if ($verbose);
+            # 160417 - what is this test ? Ensuring that it is not going up ?
+            if($dqdt_qph <= $thres_up && $peak_cond_met == 1 
                                       && $nspate > 0){
                 printf (STDOUT " passed ++++++") if ($verbose);
                 $is_max=1;
-                $lvl_delta = $lvl_max - $lvl_base;
-                if($lvl_delta > $dh_max){
-                    $dh_max = $lvl_delta;
+                $qty_delta = $qty_max - $qty_base;
+                if($qty_delta > $dq_max){
+                    $dq_max = $qty_delta;
                 }
-                $ddoy_delta = $ddoy_max - $ddoy_base;
-                if($ddoy_delta < 0) {
-                    $ddoy_delta += &dysize($YY-1);
-                }
+                # $ddoy_delta = $ddoy_max - $ddoy_base;
+                $epoch_delta = $epoch_max - $epoch_base;  ### units are seconds
+                $days_delta = $epoch_delta/86400.;        ### units are days
+                # not longer needed ,this was to add #days in prev. years when moving on into the next
+                # if($ddoy_delta < 0) {
+                #     $ddoy_delta += &dysize($YY-1);
+                # }
                 # now that peak was found, can close up entry on new spate
                     # output in two steps: 1 (above) - the start of the spate; 2 (here): when peak found
-                printf (STDOUT " to %+7.3fm on %4d%02d%02d %02d%02d (dh=%6.3fm over %6.3f days)",
-                  $lvl_max,$YY_max,$MM_max,$DD_max,$hh_max,$mm_max,$lvl_delta,$ddoy_delta);
+                printf (STDOUT " to %+7.3fm on %4d%02d%02d %02d%02d (dq=%6.3fm over %6.3f days)",
+                        $qty_max,$YY_max,$MM_max,$DD_max,$hh_max,$mm_max,$qty_delta,$days_delta);        ### NOTE: $days_delta was $ddoy_delta
                 # reset min to here, so as to look for next min down from the peak
                 if($peak_passed == 1){
                     printf (STDOUT "\n                                                                            ");
@@ -924,11 +1081,12 @@ while(<IDF>) {
                 }
                 # 141021: comment for now ("0,>1 nspates" problem)
                 # printf (ODSF "%15.10f %+8.4f  %+7.3f  %6.3f  ",
-                # 	$cdyr_max,$lvl_max, $lvl_delta,$ddoy_delta);
-                printf (ODSLF "pk: %15.10f %+8.4f  %+7.3f  %6.3f",
-                               $cdyr_max,$lvl_max, $lvl_delta,$ddoy_delta);
+                # 	$epoch_max,$qty_max, $qty_delta,$ddoy_delta);
+                printf (ODSLF "pk: %4d%02d%02d %02d:%02d %+8.4f  %+7.3f  %6.3f",
+                               $YY_max,$MM_max,$DD_max,$hh_max,$mm_max,
+                               $qty_max, $qty_delta,$days_delta);        ### NOTE: $days_delta was $ddoy_delta
                 $peak_passed=1;
-                # printf (ODSFL "pk: _____cdyr______ hTmax(m)  _dhT(m)  _Dddoy");
+                # printf (ODSFL "pk: _____epoch______ hTmax(m)  _dhT(m)  _Ddays");
                 # reset the min at the max, so can scan for new min from now on ..
                 &setmin();
             } else {
@@ -951,24 +1109,28 @@ while(<IDF>) {
             }
             # then clean array at the bottom
             shift(@last_slopedn_vals);
-            printf (STDOUT " ndata=%5d  lvl=%+7.4f  dhdt_mph=%+8.4f  through_cond_met=%1d nspate=%1d  -- through conds: ",
-                            $ndata,$lvl,$dhdt_mph,$through_cond_met,$nspate)  if ($verbose);
-            if($dhdt_mph <= $thres_dn && $peak_cond_met == 1 && $nspate > 0){
+            printf (STDOUT " ndata=%5d  qty=%+7.4f  dqdt_qph=%+8.4f  through_cond_met=%1d nspate=%1d  -- through conds: ",
+                            $ndata,$qty,$dqdt_qph,$through_cond_met,$nspate)  if ($verbose);
+            # 160417 looks like a through condition passed here
+            if($dqdt_qph <= $thres_dn && $peak_cond_met == 1 && $nspate > 0){
                 printf (STDOUT " passed ++++++") if ($verbose);
                 $is_min=1;
-                # $lvl_delat is unique to peaks in spates - comment out here
-                $lvl_delta_dn = $lvl_min - $lvl_max;
-                # if($lvl_delta > $dh_max){
-                # 	  $dh_max = $lvl_delta;
+                # $qty_delta is unique to peaks in spates - comment out here
+                $qty_delta_dn = $qty_min - $qty_max;     # min - max  is a feature of a 'through' 
+                # if($qty_delta > $dq_max){
+                # 	  $dq_max = $qty_delta;
                 # }
-                $ddoy_delta = $ddoy_min - $ddoy_max;
-                if($ddoy_delta < 0) {
-                    $ddoy_delta += &dysize($YY-1);
-                }
+                $epoch_delta = $epoch_min - $epoch_max;  # min - max  is a feature of a 'through' but is it right for time #BUG# ? ### MUST CHECK ###
+                $days_delta = $epoch_delta/86400.;
+                $days_delta_dn = $days_delta;       #### added 160714 as it seemed to be missing, and is invoked in next printf stmnt
+                # if($ddoy_delta < 0) {
+                #     $ddoy_delta += &dysize($YY-1);
+                # }
+                
                 # now that through was found, can close up entry on new spate
                 # output in two steps: 1 (above) - the start of the spate; 2 (here): when peak found
-                printf (STDOUT " to %+7.3fm on %4d%02d%02d %02d%02d (dh=%6.3fm over %6.3f days)",
-                                $lvl_max,$YY_max,$MM_max,$DD_max,$hh_max,$mm_max,$lvl_delta_dn,$ddoy_delta_dn);
+                printf (STDOUT " to %+7.3fm on %4d%02d%02d %02d%02d (dq=%6.3f  over %6.3f days)",
+                                $qty_max,$YY_max,$MM_max,$DD_max,$hh_max,$mm_max,$qty_delta_dn,$days_delta_dn);
                 # reset min to here, so as to look for next min down from the peak
                 # if($through_passed == 1){
                 # 	  printf (STDOUT "\n                                                                            ");
@@ -976,10 +1138,11 @@ while(<IDF>) {
                 # }
                 # 141021: comment for now ("0,>1 nspates" problem)
                 # printf (ODSF "%15.10f %+8.4f  %+7.3f  %6.3f  ",
-                # 	$cdyr_min,$lvl_min, $lvl_delta_dn,$ddoy_min);
-                printf (ODSLF "tr: %15.10f %+8.4f  %+7.3f  %6.3f",
-                              $cdyr_min,$lvl_min, $lvl_delta_dn,$ddoy_min);
-                # printf (ODSFL "tr: _____cdyr______ hTmax(m)  _dhT(m)  ddoy_at_min\n");
+                # 	$epoch_min,$qty_min, $qty_delta_dn,$ddoy_min);
+                printf (ODSLF "tr: %4d%02d%02d %02d:%02d %+8.4f  %+7.3f  %6.3f",
+                              $YY_min,$MM_min,$DD_min,$hh_min,$mm_min,
+                              $qty_min, $qty_delta_dn, $days_delta_dn);
+                # printf (ODSFL "tr: _____epoch______ hTmax(m)  _dhT(m)  ddoy_at_min\n");
                 $through_passed=1;
                 # reset the max at the min, so can scan for new max from now on ..
                 &setmax();
@@ -994,30 +1157,31 @@ while(<IDF>) {
     # printing to other data files looks like a sinecure now..
     # Except that any new field added to ODDF will require updating ReadMoti.C
     # and break backward compatibility !
-    printf (ODF "%02d/%02d/%4d %02d:%02d, %+8.4f, %15.10f, %12.7f, %7.3f, ",
-                $MM,$DD,$YY,$hh,$mm,$lvl,$cdyr,$cdyr-$YY0,$ddoy); # $cdoy %5.1f
-    printf (ODDF "%02d %02d %4d %02d %02d  %+8.4f %15.10f %12.7f %7.3f  ",
-                $MM,$DD,$YY,$hh,$mm,$lvl,$cdyr,$cdyr-$YY0,$ddoy);
+    printf (ODF "%02d/%02d/%4d %02d:%02d, %+8.4f, %10d,  ",   # %12.7f, %7.3f, ",
+                $MM,$DD,$YY,$hh,$mm,$qty,$epoch);             # ,$cdyr-$YY0,$ddoy); # $cdoy %5.1f
+    printf (ODDF "%4d%02d%02d %02d:%02d  %+8.4f  %10d  ",     # %15.10f %12.7f %7.3f  ",
+                 $YY,$MM,$DD,$hh,$mm,    $qty,   $epoch);     # ,$cdyr,$cdyr-$YY0,$ddoy);
     # printf (ODDF "Legend:\nMM DD YYYY hh mm  __hT(m)_ _____cdyr______ __cdyr-YY0__ __ddoy_  ");
 	
-    printf (ODF  " %+9.5f, %+9.5f",$dhdt_mph,$dhdt_cpm);
-    printf (ODDF " %+9.5f %+9.5f",$dhdt_mph,$dhdt_cpm,$above_thres,$new_spate);  #### <=== #BUG1# ?!? two fields not printed out here ###
-    # printf (ODDF " _dhdt_mph dhdt_cmpm");
+    # printf (ODF  " %+9.5f, %+9.5f",$dqdt_qph,$dhdt_cpm);
+    printf (ODF  "%+9.5f,",$dqdt_qph);
+    printf (ODDF "%+9.5f  ",$dqdt_qph,$above_thres,$new_spate);  #### <=== #BUG1# ?!? two fields not printed out here ### 160417: ok, will print later
+    # printf (ODDF " _dqdt_qph dhdt_cmpm");
   
     # printf (ODF  " , %+9.2E, %1d, %1d, %1d, %1d, %1d, %1d, %1d\n",$DSL,$up_met,$is_max,$dn_met,$is_min,$above_thres,$n_not_above_thres,$new_spate);
     # printf (ODDF "  %+9.2E  %1d %1d  %1d %1d  %1d %1d %1d\n",$DSL, $up_met,$is_max,$dn_met,$is_min,$above_thres,$n_not_above_thres,$new_spate);
   
-    printf (ODF  " , %+9.2E, %1d, %1d, %1d, %1d,\n",$DSL,$up_met,$is_max,$dn_met,$is_min);
+    printf (ODF  " %+9.2E, %1d, %1d, %1d, %1d, ",$DSL,$up_met,$is_max,$dn_met,$is_min);
     printf (ODDF "  %+9.2E  %1d %1d  %1d %1d  ",$DSL, $up_met,$is_max,$dn_met,$is_min);
     # printf (ODDF "  _DeltaSL_  For here on a galore of 1/0 flags, in this order:\n");
     # printf (ODDF "up_met is_max  dn_met is_min  ");
   
-    printf (ODF  "  %+7.1f, ",$dh_local);
+    printf (ODF  "  %+7.1f, ",$dq_local);
     printf (ODF  "  %1d,  %1d, %1d, %1d, %1d,",$above_thres,$in_spate,$in_spate_last,$in_spate_last_but1,$in_spate_last_but2);
     printf (ODF  "  %1d, %1d\n",$n_not_in_spate,$new_spate);
 
-    printf (ODDF "  %+7.1f ",$dh_local);
-    # printf (ODDF "  +7.1f: dh_local ");
+    printf (ODDF "  %+7.1f ",$dq_local);
+    # printf (ODDF "  +7.1f: dq_local ");
     printf (ODDF "  %1d  %1d %1d %1d %1d",$above_thres,$in_spate,$in_spate_last,$in_spate_last_but1,$in_spate_last_but2);
     # printf (ODDF "  above_thres in_spate in_spate_last in_spate_last_but1 in_spate_last_but2");
     printf (ODDF "  %1d %1d\n",$n_not_in_spate,$new_spate);
@@ -1026,9 +1190,9 @@ while(<IDF>) {
 
     # put here all updates that must be done before moving to the next point        
     $YY_last=$YY;
-    $cdyr_last=$cdyr;
-    $lvl_last=$lvl;
-    $dhdt_mph_last=$dhdt_mph;
+    $epoch_last=$epoch;
+    $qty_last=$qty;
+    $dqdt_qph_last=$dqdt_qph;
     $in_spate_last_but2=$in_spate_last_but1;
     $in_spate_last_but1=$in_spate_last;
     $in_spate_last=$in_spate;
@@ -1059,9 +1223,9 @@ close(ODGF);
 # close(ODTF);
 
 printf (STDOUT "\n\n%d points processed in %s\n",$ndata,$tnam);
-printf (OSF    "Summary file for cl2dat.pl processing of %s\n\n%d points processed\n",$tnam,$ndata);
-$msg=sprintf("%d spates found (dhdt_cpm >= %.3f for %d consec. pts): longest ivl %.2f days, highest ampl %.2f m) [see .spt file (.sptl for long format)]\n",
-              $nspate,$spate_thres_up,$n_spate_thres_up,$tsls_d_max,$dh_max);
+printf (OSF    "Summary file for ppr.pl processing of %s\n\n%d points processed\n",$tnam,$ndata);
+$msg=sprintf("%d spates found (dqdt_qph >= %.3f for %d consec. pts): longest ivl %.2f days, highest ampl %.2f qty) [see .spt file (.sptl for long format)]\n",
+              $nspate, $spate_thres_up, $n_recent_to_consider, $tsls_d_max, $dq_max);
 printf (STDOUT "%s",$msg);
 printf (OSF    "%s",$msg);
 $msg=sprintf ("%d gaps found (threshold = %d min): longest %.2f days into %04d%02d%02d %02d:%02d [see .gap file]\n",
@@ -1075,16 +1239,16 @@ printf (OSF    "%s",$msg);
 $msg=sprintf ("Absolute extrema in level in this data:\n");
 printf (STDOUT "%s",$msg);
 printf (OSF    "%s",$msg);
-$msg=sprintf ("  min: %+7.3f m  at cdyr=%10.5f [%s]\n  max: %+7.3f m  at cdyr=%10.5f [%s]\n",
-              $lvl_abs_min, $lvl_abs_min_cdyr, $lvl_abs_min_ymdhs, $lvl_abs_max, $lvl_abs_max_cdyr, $lvl_abs_max_ymdhs);
+$msg=sprintf ("  min: %+7.3f m  at epoch=%10d [%s]\n  max: %+7.3f m  at epoch=%10d [%s]\n",
+              $qty_abs_min, $qty_abs_min_epoch, $qty_abs_min_YMDhm, $qty_abs_max, $qty_abs_max_epoch, $qty_abs_max_YMDhm);
 printf (STDOUT "%s",$msg);
 printf (OSF    "%s",$msg);
 $msg=sprintf ("Absolute extrema in rate of change of level in this data:\n");
 printf (STDOUT "%s",$msg);
 printf (OSF    "%s",$msg);
-$msg=sprintf ("  min: %+7.3f m/h  at cdyr=%10.5f [%s] (lvl=%+7.3f m)\n  max: %+7.3f m/h  at cdyr=%10.5f [%s] (lvl=%+7.3f m)\n\n",
-              $dhdt_abs_min, $dhdt_abs_min_cdyr, $dhdt_abs_min_ymdhs, $dhdt_abs_min_lvl, 
-              $dhdt_abs_max, $dhdt_abs_max_cdyr, $dhdt_abs_max_ymdhs, $dhdt_abs_max_lvl);
+$msg=sprintf ("  min: %+7.3f m/h  at epoch=%10d [%s] (qty=%+7.3f m)\n  max: %+7.3f m/h  at epoch=%10d [%s] (qty=%+7.3f m)\n\n",
+              $dqdt_abs_min, $dqdt_abs_min_epoch, $dqdt_abs_min_YMDhm, $dqdt_abs_min_qty, 
+              $dqdt_abs_max, $dqdt_abs_max_epoch, $dqdt_abs_max_YMDhm, $dqdt_abs_max_qty);
 printf (STDOUT "%s",$msg);
 printf (OSF    "%s",$msg);
 
@@ -1092,8 +1256,10 @@ close(OSF);
 
 
 ############# this is the end of main ---- procedure definitions follow ###############
-#
-# Note added 160416 JF on date and time formats (DTF)s
+
+
+#########################################################################################
+# Note added 160416 JF on date and time formats (DTF)s (aka datetime)
 # 
 #     I aim to use a DTF that is portable and rational for scientific use (hum).
 # I just looked up standards and found that for the exceptions of cc = centiseconds, the
@@ -1105,13 +1271,15 @@ close(OSF);
 # https://en.wikipedia.org/wiki/ISO_8601 (free, contemplate donating every now and then)
 # 
 # 
-# 
 # Ordinal dates 'YYYY-DDD' or 'YYYYDDD' provide a simple form for occasions when the 
 # arbitrary nature of week and month definitions are more of an impediment than an aid,
 # for instance, when comparing dates from different calendars. As represented above, 
 # [YYYY] indicates a year. [DDD] is the day of that year, from 001 through 365 (366 in
 # leap years). For example, "1981-04-05" is also "1981-095"
-
+# 
+# Ordinale dates are attractive as the unit of one day is a lot more constant than a year.
+# a) Still, leap years must be taken into account:
+#
 # Selon Wikipedia [https://fr.wikipedia.org/wiki/Année_bissextile]:
 # Depuis l'ajustement du calendrier grégorien, l'année sera bissextile (elle aura 366 jours):
 #     si l'année est divisible par 4 et non divisible par 100, ou
@@ -1126,6 +1294,40 @@ close(OSF);
 # so I tested both from 1800 to 2505 and they always return identical values.
 # This is because the last clause (%400) always verifies the first (%4)
 #
+# b) besides, if the data covers more than one year, some time zero must be defined,
+# which would naturally be the first day of data .. but rundata/db time spans are
+# read before any data. Plus, different data files might have different initial times.
+# And if the output files end up being used for comparisons, they must have the same t0.
+#
+#
+# THE EPOCH IT IS
+# 
+# So, after quite some reading off the net, I decided to follow the advice that there is
+# no better time reference than the 'epoch' - even it if might be machine-dependent.
+# A very common package is DateTime, from which these two functions will suffice:
+#     my $dtp = DateTime->new(
+#         year       => 1988,
+#         month      => 3,
+#         day        => 5,
+#         hour       => 12,
+#         minute     => 00,
+#         second     => 47,
+#         nanosecond => 500000000,
+#         time_zone  => 'America/Chicago',
+#     );
+# and:
+#     $asbolute_time_axis_in_seconds_since_midnight_Jan_1_1970 = $dtp->epoch();
+#
+# or in simplified form:
+#     $YY=1965; $MM=9; $DD=3; $hh=9; $mm=30;
+#     $dts = DateTime->new(year => $YY, month => $MM, day => $DD, hour => $hh, minute => $mm);
+#     $beuhs = $dts->epoch();
+# 
+# Note: the difference between the two epochs above is exactly 22.50 years  ( 8-O !
+#       (oo)_S <3 (oo)_P
+
+
+### obsoleted 160417 - sorry Gnarfer fH (next few blocks, not all)
 ########################################################################################
 # The following from my standard script for DTF, turned into subs for cl2dat>ppr.pl :
 #
@@ -1146,7 +1348,7 @@ close(OSF);
 #
 # this from a script found on the web (Time.pl)
 # pretty well debugged version Oct 2000 JF
-################################################################################
+########################################################################################
 #
 # Copyright (c) Ove Ruben R Olsen (Gnarfer from hell)
 #
@@ -1183,9 +1385,12 @@ close(OSF);
 # @mdays   = ( '31', '28', '31', '30', '31', '30', 
 #	      '31', '31', '30', '31', '30', '31' ) ;
 #  DoYR (day,month,year)  => daynumber in year  || -1
-sub DoYR { # day, month, year
+
+sub DoYR { # day, month, year  ### obsoleted 160417 - sorry Gnarfer fH
   local ($day,$mon,$year,$i,$j) = (@_[0],@_[1],@_[2],0,0);
   return -1 if ($day < 1);
+  # this check added 160417 JF
+  return -1 if (($mon < 1) || ($mon > 12));
   return -1 if (($day > $mdays[$mon-1]) && (&dysize($year) == 365));
   return -1 if (($day > 29) && ($mon == 2) && (&dysize($year) == 366));
   # add extra day if past Feb and in a leap year
@@ -1195,13 +1400,16 @@ sub DoYR { # day, month, year
   return ($j + $day ) ;
 }
 
-# dysize (year)  => number of days in year || -1
+# dysize (year)  => number of days in year || -1  ### obsoleted 160417 - sorry Gnarfer fH
 sub dysize { 
   local($y,$yr) = (@_[0],365) ;
   return -1 if ($y < 0 ) ;
   return 347 if ($y == 1752);
   # $y += 1900 if($y < 1970) ;
-  $yr = 366 if((($y % 4) == 0) && ( ($y % 100) || (($y % 400)==0) )) ;
+  # original from Gnarfer :
+  # $yr = 366 if((($y % 4) == 0) && ( ($y % 100) || (($y % 400)==0) )) ;
+  # my version JF 160417 [proven identical to above, but syntactically closer to wiki]:
+  $yr = 366 if( ( ( ($y % 4) == 0) && ($y % 100) ) || (($y % 400)==0) ) ;
   return  $yr ;
 }
 
@@ -1212,9 +1420,10 @@ sub setmax {
 	$YY_max=$YY;
 	$hh_max=$hh;
 	$mm_max=$mm;
-	$lvl_max=$lvl;
-	$ddoy_max=$ddoy;
-	$cdyr_max=$cdyr;
+	$qty_max=$qty;
+	# $ddoy_max=$ddoy;
+	# $cdyr_max=$cdyr;
+	$epoch_max=$epoch;
 }
 
 # set current values to new minimum
@@ -1224,9 +1433,10 @@ sub setmin {
 	$YY_min=$YY;
 	$hh_min=$hh;
 	$mm_min=$mm;
-	$lvl_min=$lvl;
-	$ddoy_min=$ddoy;
-	$cdyr_min=$cdyr;
+	$qty_min=$qty;
+	# $ddoy_min=$ddoy;
+	# $cdyr_min=$cdyr;
+	$epoch_min=$epoch;
 }
 
 # make the following work for any file handle !
@@ -1282,7 +1492,7 @@ sub read_rundata {
     do {
         # printf (ODF "%s",$_);
         chop();
-        $nline++;
+        # $nline++;  # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
         # next, extract fields per validity range
         
@@ -1306,31 +1516,45 @@ sub read_rundata {
         # $_ = <RDF>;
         get_next_non_comment_line(\*RDF);
         chop();
-        $nline++;
+        # $nline++;  # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
         $_ =~ /^\s+\$thres_gap\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($rundata_fn);
         $thres_gap_rd=$1;
         print "  thres_gap_rd = $thres_gap_rd\n" if ($verbose);
         
-        #### ALL FOLLOWING CALCULATIONS MUST BE CHECKED #BUG7#
-        ## not obtain start and end dt in cdyr units                #BUG6# looms here
-        $start_cdoy=&DoYR($start_DD,$start_MM,$start_YY);           # current day of the year
-        $start_ddoy=$cdoy + (($start_mm/60.)+$start_hh)/24.;        # real time in units of day of the year
-        $start_dy=&dysize($start_YY);                               # days in current year
-        $start_dy_last=&dysize($start_YY_last);                     # days in "the year of the last (previous) data point"
-        $start_cdyr=$start_YY+( (($start_mm/60.)+$start_hh)/24. + $start_cdoy )/$start_dy;  # Digital (real) year coordinate <==this is #BUG6#
-        # print "cdoy=$cdoy, dy=$dy, cdyr=$cdyr, cdyr_last=$cdyr_last\n";
-        $end_cdoy=&DoYR($end_DD,$end_MM,$end_YY);                   # current day of the year
-        $end_ddoy=$cdoy + (($end_mm/60.)+$end_hh)/24.;              # real time in units of day of the year
-        $end_dy=&dysize($end_YY);                                   # days in current year
-        $end_dy_last=&dysize($end_YY_last);                         # days in "the year of the last (previous) data point"
-        $end_cdyr=$end_YY+( (($end_mm/60.)+$end_hh)/24. + $end_cdoy )/$end_dy;  # Digital (real) year coordinate <==this is #BUG6#
-        # print "cdoy=$cdoy, dy=$dy, cdyr=$cdyr, cdyr_last=$cdyr_last\n";
+        # #### ALL FOLLOWING CALCULATIONS MUST BE CHECKED #BUG7# ***done*** obsoleted 160417
+        # ## not obtain start and end dt in cdyr units                #BUG6# looms here
+        # $start_cdoy=&DoYR($start_DD,$start_MM,$start_YY);           # current day of the year
+        # $start_ddoy=$cdoy + (($start_mm/60.)+$start_hh)/24.;        # real time in units of day of the year
+        # $start_dy=&dysize($start_YY);                               # days in current year
+        # $start_dy_last=&dysize($start_YY_last);                     # days in "the year of the last (previous) data point"
+        # $start_cdyr=$start_YY+( (($start_mm/60.)+$start_hh)/24. + $start_cdoy )/$start_dy;  # Digital (real) year coordinate <==this is #BUG6# ***done*** obsoleted 160417
+        # # print "cdoy=$cdoy, dy=$dy, cdyr=$cdyr, cdyr_last=$cdyr_last\n";
+        # $end_cdoy=&DoYR($end_DD,$end_MM,$end_YY);                   # current day of the year
+        # $end_ddoy=$cdoy + (($end_mm/60.)+$end_hh)/24.;              # real time in units of day of the year
+        # $end_dy=&dysize($end_YY);                                   # days in current year
+        # $end_dy_last=&dysize($end_YY_last);                         # days in "the year of the last (previous) data point"
+        # $end_cdyr=$end_YY+( (($end_mm/60.)+$end_hh)/24. + $end_cdoy )/$end_dy;  # Digital (real) year coordinate <==this is #BUG6# ***done*** obsoleted 160417
+        # # print "cdoy=$cdoy, dy=$dy, cdyr=$cdyr, cdyr_last=$cdyr_last\n";
+
+        # replaced with epoch: 
+        $dt_start = DateTime->new(year => $start_YY, month => $start_MM, day => $start_DD, hour => $start_hh, minute => $start_mm);
+        $start_epoch = $dt_start->epoch();
+        $dt_end = DateTime->new(year => $end_YY, month => $end_MM, day => $end_DD, hour => $end_hh, minute => $end_mm);
+        $end_epoch = $dt_end->epoch();
+        # but remain human-conscious:
+        $start_t = sprintf("%4d%02d%02d %02d%02d",$start_YY,$start_MM,$start_DD,$start_hh,$start_mm);
+        $end_t   = sprintf("%4d%02d%02d %02d%02d",$end_YY,$end_MM,$end_DD,$end_hh,$end_mm);
+        
                 
         ## store in vectors that will be used inside the code
-        push(@rundata_start_t,      $start_cdyr);        
-        push(@rundata_end_t,        $end_cdyr);        
-        push(@rundata_thres_gap,    $thres_gap_rd);        
+        # push(@rundata_start_t,      $start_cdyr);        
+        # push(@rundata_end_t,        $end_cdyr);        
+        push(@rundata_start_epoch,  $start_epoch);
+        push(@rundata_end_epoch,    $end_epoch);
+        push(@rundata_start_t,      $start_t);
+        push(@rundata_end_t,        $end_t);
+        push(@rundata_thres_gap,    $thres_gap_rd);
 
         # max flexibility with comment lines is causing some complexity
         # } while(get_next_non_comment_line(\*RDF));  # doesn't work
@@ -1365,7 +1589,7 @@ sub read_db {
     do {{
         # printf (ODF "%s",$_);
         chop();
-        $nline++;
+        # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
         # next, extract fields per validity range
         
@@ -1416,7 +1640,7 @@ sub read_db {
         # 1) start and end dates
         # get_next_non_comment_line(\*DBF);
         # chop();
-        $nline++;
+        # $nline++;   # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
         $_ =~ /^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})\s+(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/
           || die_on_syntax_error($db_fn);
@@ -1435,17 +1659,33 @@ sub read_db {
         
         # 2) parameters, one line for each
         # $_ = <DBF>;
-        get_next_non_comment_line(\*DBF);
-        chop();
-        $nline++;
-        print ">$_<\n" if ($verbose);
-        $_ =~ /^\s+\$n_spate_thres_up\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
-        $n_spate_thres_up_db=$1;
-        print "  n_spate_thres_up_db = $n_spate_thres_up_db\n" if ($verbose);
+        ## RETIRED 160417 ## get_next_non_comment_line(\*DBF);
+        # chop();
+        # $nline++;   # increment is done in get_next_non_comment_line()
+        # print ">$_<\n" if ($verbose);
+        # $_ =~ /^\s+\$n_spate_thres_up\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
+        # $n_spate_thres_up_db=$1;
+        # print "  n_spate_thres_up_db = $n_spate_thres_up_db\n" if ($verbose);
         
         get_next_non_comment_line(\*DBF);
         chop();
-        $nline++;
+        # $nline++;     # increment is done in get_next_non_comment_line()
+        print ">$_<\n" if ($verbose);
+        $_ =~ /^\s+\$n_recent_to_consider\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
+        $n_recent_to_consider_db=$1;
+        print "  n_recent_to_consider_db = $n_recent_to_consider_db\n" if ($verbose);
+
+        get_next_non_comment_line(\*DBF);
+        chop();
+        # $nline++;     # increment is done in get_next_non_comment_line()
+        print ">$_<\n" if ($verbose);
+        $_ =~ /^\s+\$n_slope_up_above_thres\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
+        $n_slope_up_above_thres_db=$1;
+        print "  n_slope_up_above_thres_db = $n_slope_up_above_thres_db\n" if ($verbose);
+
+        get_next_non_comment_line(\*DBF);
+        chop();
+        # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
         $_ =~ /^\s+\$spate_thres_up\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
         $spate_thres_up_db=$1;
@@ -1453,7 +1693,7 @@ sub read_db {
         
         get_next_non_comment_line(\*DBF);
         chop();
-        $nline++;
+        # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
         $_ =~ /^\s+\$n_not_in_spate_req\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
         $n_not_in_spate_req_db=$1;
@@ -1461,15 +1701,15 @@ sub read_db {
         
         get_next_non_comment_line(\*DBF);
         chop();
-        $nline++;
+        # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
-        $_ =~ /^\s+\$dh_local_min\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
-        $dh_local_min_db=$1;
-        print "  dh_local_min_db = $dh_local_min_db\n" if ($verbose);
+        $_ =~ /^\s+\$dq_local_min\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
+        $dq_local_min_db=$1;
+        print "  dq_local_min_db = $dq_local_min_db\n" if ($verbose);
         
         get_next_non_comment_line(\*DBF);
         chop();
-        $nline++;
+        # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
         $_ =~ /^\s+\$n_thres_up\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
         $n_thres_up_db=$1;
@@ -1477,7 +1717,7 @@ sub read_db {
         
         get_next_non_comment_line(\*DBF);
         chop();
-        $nline++;
+        # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
         $_ =~ /^\s+\$thres_up\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
         $thres_up_db=$1;
@@ -1485,7 +1725,7 @@ sub read_db {
         
         get_next_non_comment_line(\*DBF);
         chop();
-        $nline++;
+        # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
         $_ =~ /^\s+\$n_thres_dn\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
         $n_thres_dn_db=$1;
@@ -1493,47 +1733,54 @@ sub read_db {
         
         get_next_non_comment_line(\*DBF);
         chop();
-        $nline++;
+        # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
         $_ =~ /^\s+\$thres_dn\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
         $thres_dn_db=$1;
         print "  thres_dn_db = $thres_dn_db\n" if ($verbose);
         
-        #### ALL FOLLOWING CALCULATIONS MUST BE CHECKED #BUG7#
-        ## not obtain start and end dt in cdyr units                #BUG6# looms here
-        $start_cdoy=&DoYR($start_DD,$start_MM,$start_YY);           # current day of the year
-        $start_ddoy=$cdoy + (($start_mm/60.)+$start_hh)/24.;        # real time in units of day of the year
-        $start_dy=&dysize($start_YY);                               # days in current year
-        $start_dy_last=&dysize($start_YY_last);                     # days in "the year of the last (previous) data point"
-        $start_cdyr=$start_YY+( (($start_mm/60.)+$start_hh)/24. + $start_cdoy )/$start_dy;  # Digital (real) year coordinate <==this is #BUG6#
-        # print "cdoy=$cdoy, dy=$dy, cdyr=$cdyr, cdyr_last=$cdyr_last\n";
-        $end_cdoy=&DoYR($end_DD,$end_MM,$end_YY);                   # current day of the year
-        $end_ddoy=$cdoy + (($end_mm/60.)+$end_hh)/24.;              # real time in units of day of the year
-        $end_dy=&dysize($end_YY);                                   # days in current year
-        $end_dy_last=&dysize($end_YY_last);                         # days in "the year of the last (previous) data point"
-        $end_cdyr=$end_YY+( (($end_mm/60.)+$end_hh)/24. + $end_cdoy )/$end_dy;  # Digital (real) year coordinate <==this is #BUG6#
-        # print "cdoy=$cdoy, dy=$dy, cdyr=$cdyr, cdyr_last=$cdyr_last\n";
+        # #### ALL FOLLOWING CALCULATIONS MUST BE CHECKED #BUG7# ***done*** obsoleted 160417
+        # ## not obtain start and end dt in cdyr units                #BUG6# looms here ***done*** obsoleted 160417
+        # $start_cdoy=&DoYR($start_DD,$start_MM,$start_YY);           # current day of the year
+        # $start_ddoy=$cdoy + (($start_mm/60.)+$start_hh)/24.;        # real time in units of day of the year
+        # $start_dy=&dysize($start_YY);                               # days in current year
+        # $start_dy_last=&dysize($start_YY_last);                     # days in "the year of the last (previous) data point"
+        # $start_cdyr=$start_YY+( (($start_mm/60.)+$start_hh)/24. + $start_cdoy )/$start_dy;  # Digital (real) year coordinate <==this is #BUG6# ***done*** obsoleted 160417
+        # # print "cdoy=$cdoy, dy=$dy, cdyr=$cdyr, cdyr_last=$cdyr_last\n";
+        # $end_cdoy=&DoYR($end_DD,$end_MM,$end_YY);                   # current day of the year
+        # $end_ddoy=$cdoy + (($end_mm/60.)+$end_hh)/24.;              # real time in units of day of the year
+        # $end_dy=&dysize($end_YY);                                   # days in current year
+        # $end_dy_last=&dysize($end_YY_last);                         # days in "the year of the last (previous) data point"
+        # $end_cdyr=$end_YY+( (($end_mm/60.)+$end_hh)/24. + $end_cdoy )/$end_dy;  # Digital (real) year coordinate <==this is #BUG6# ***done*** obsoleted 160417
+        # # print "cdoy=$cdoy, dy=$dy, cdyr=$cdyr, cdyr_last=$cdyr_last\n";
                 
-        ## store in vectors that will be used inside the code
-        push(@db_start_t,              $start_cdyr);        
-        push(@db_end_t,                $end_cdyr);        
-        push(@db_n_spate_thres_up,     $n_spate_thres_up_db);        
-        push(@db_spate_thres_up,       $spate_thres_up_db);        
-        push(@db_n_not_in_spate_req,   $n_not_in_spate_req_db);        
-        push(@db_dh_local_min,         $dh_local_min_db);        
-        push(@db_n_thres_up,           $n_thres_up_db);        
-        push(@db_thres_up,             $thres_up_db);        
-        push(@db_n_thres_dn,           $n_thres_dn_db);        
-        push(@db_thres_dn,             $thres_dn_db);        
+        # replaced with epoch: 
+        $dt_start = DateTime->new(year => $start_YY, month => $start_MM, day => $start_DD, hour => $start_hh, minute => $start_mm);
+        $start_epoch = $dt_start->epoch();
+        $dt_end = DateTime->new(year => $end_YY, month => $end_MM, day => $end_DD, hour => $end_hh, minute => $end_mm);
+        $end_epoch = $dt_end->epoch();
+        # but remain human-conscious:
+        $start_t = sprintf("%4d%02d%02d %02d%02d",$start_YY,$start_MM,$start_DD,$start_hh,$start_mm);
+        $end_t   = sprintf("%4d%02d%02d %02d%02d",$end_YY,$end_MM,$end_DD,$end_hh,$end_mm);
+        
 
-        #     $n_spate_thres_up   =     10   # 4  
-        #     $spate_thres_up     =      1   # 0   
-        #     $n_not_in_spate_req =      3   # 
-        #     $dh_local_min       =      3   # 
-        #     $n_thres_up         =     10   # 4
-        #     $thres_up           =      0   # 
-        #     $n_thres_dn         =      4   # 
-        #     $thres_dn           =      0   # 
+        ## store in vectors that will be used inside the code
+        # push(@db_start_t,                  $start_cdyr);        
+        # push(@db_end_t,                    $end_cdyr);        
+        push(@db_start_epoch,              $start_epoch);
+        push(@db_end_epoch,                $end_epoch);
+        push(@db_start_t,                  $start_t);
+        push(@db_end_t,                    $end_t);
+        ## RETIRED 160417 ## push(@db_n_spate_thres_up,     $n_spate_thres_up_db);        
+        push(@db_n_recent_to_consider,     $n_recent_to_consider_db);
+        push(@db_n_slope_up_above_thres,   $n_slope_up_above_thres_db);
+        push(@db_spate_thres_up,           $spate_thres_up_db);        
+        push(@db_n_not_in_spate_req,       $n_not_in_spate_req_db);        
+        push(@db_dq_local_min,             $dq_local_min_db);        
+        push(@db_n_thres_up,               $n_thres_up_db);        
+        push(@db_thres_up,                 $thres_up_db);        
+        push(@db_n_thres_dn,               $n_thres_dn_db);        
+        push(@db_thres_dn,                 $thres_dn_db);        
 
         # max flexibility with comment lines is causing some complexity
         # } while(get_next_non_comment_line(\*DBF));  # doesn't work
