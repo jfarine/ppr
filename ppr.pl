@@ -1328,8 +1328,6 @@ close(OSF);
 #     $dts = DateTime->new(year => $YY, month => $MM, day => $DD, hour => $hh, minute => $mm);
 #     $beuhs = $dts->epoch();
 # 
-# Note: the difference between the two epochs above is exactly 22.50 years  ( 8-O !
-#       (oo)_S <3 (oo)_P
 
 
 ### obsoleted 160417 - sorry Gnarfer fH (next few blocks, not all)
