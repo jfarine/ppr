@@ -1,0 +1,110 @@
+start;
+load Modules;
+Inits;
+Load and check rundata;
+Load and check database;
+open I/O files;
+while(<IDF>){
+    get time;
+    n_data++;
+    scan_for_xtremes;
+    set PARAMs from rundata/DB;
+    if(n_data > 1){
+        calc Dqs, Dts, dq/dt;
+        if(dt > gap){
+            msg to STDOUT, ODGF;
+            update xtreme vars;
+        } else {
+            update extrema;
+        }
+        if(dt < 0){
+            msg out;
+            incr counters;
+        }
+        using dqdt_qpm, spate_thres_up: set above_thres;
+        push to last_thres_vals;
+        using dqdt_qph, thres_up/dn: set up/dn_met;
+        push to last_slopeup/dn_vars;
+        if(n_data > n_recent2consider){
+            sum=SUM(last_thres_vals)[0..n_recent2consider];
+            if(ndata > n_recent2consider+3){
+                dq_local=1000*(Delta[n_recent2consider]-[0]);
+            }
+            if(sum > n_slopeup_above_thres
+               && last_thres_vals[0]
+               && last_thres_vals[n_recent2consider-1]]
+               && dq_local > dq_local_min){
+                in_spate = 1;
+            } else {
+                in_spate = 0;
+            }
+            if(in_spate && !in_spate_last
+              &&  !in_spate_last_but1
+              &&  !in_spate_last_but2){
+                new_spate = 1;
+                n_spate++;
+                peak_passed = 0;
+            } else {
+                new_spate = 0;
+            }
+            if(new_spate){
+                set qty_base, epoch_base;
+                if(n_spate = 1){
+                    tsls_d = Delta(epochs)/86400;
+                } else {
+                    tsls_d = 0;
+                    tsls_d_max = 0;
+                }
+                if(n_spate > 1){
+                    Output "\n" to files;
+                }
+                Output Findings to STDOUT, ODSF, ODSLF;
+                make current epoch last_;
+            }
+            shift(stacks);
+        }
+        if(n_data > 8){
+            using @tt,@ll, define SL1,2;
+            calc DSL;
+        }
+        if(ndata > n_thres_up+1){
+            if(all last_slopeup_vals[0..(n_thres_up-1)] = 1){
+                peak_cond_met = 1;
+            } else {
+                peak_cond_met = 0;
+            }
+            shift(last_lopeup_vals);
+            msg STDOUT;
+            if(dqdt_qph <= thres_up
+              && peak_cond_met == 1
+              && nspate > 0){
+                STDOUT "passed";
+                is_max=1;
+                qty_delta=Delta qty_max-base;
+                if(applicable){
+                    update dq_max;
+                }
+                get Delta_epoch/day;
+                STDOUT time, Deltas;
+                if(peak_passed){
+                    "\n" to STDOUT, O files;
+                }
+                print to ODSLF;
+                peak_passed = 1;
+                set_min();
+            } else {
+                STDOUT "failed";
+                is_max = 0;
+            }
+        }
+        if(ndata > n_thres_dn+1){
+            SIMILIAR BLOCK TO ABOVE FOR down;
+        }
+    }
+    print to O files;
+    update loop var's, history var's;
+}
+close most O files;
+conclusion print to O file;
+close O file;
+end:
