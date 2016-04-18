@@ -505,7 +505,7 @@ open(OSF,  ">$sumnam") || die "Can't open output file: $sumnam, $!\n";
 # open(ODTF,">$testnam") || die "Can't open output file: $testnam, $!\n";  
 
 # print out some headers
-printf (ODDF "Legend:\nYYYYMMDD hh:mm  ____qty___  ___epoch__  ");  #_____cdyr______ __cdyr-YY0__ __ddoy_  ");
+printf (ODDF "Legend:\nYYYY MM DD hh mm  ____qty___  ___epoch__  ");  #_____cdyr______ __cdyr-YY0__ __ddoy_  ");
 printf (ODDF "_dqdt_qph ");   # dqdt_cmpm");
 # printf (ODDF "  _DeltaSL_  From here on, a galore of 1/0 flags, in this order:\n");
 printf (ODDF "  From here on, a galore of 1/0 flags, in this order:\n");
@@ -1159,7 +1159,7 @@ while(<IDF>) {
     # and break backward compatibility !
     printf (ODF "%02d/%02d/%4d %02d:%02d, %+10.4f, %10d,  ",   # %12.7f, %7.3f, ",
                 $MM,$DD,$YY,$hh,$mm,$qty,$epoch);             # ,$cdyr-$YY0,$ddoy); # $cdoy %5.1f
-    printf (ODDF "%4d%02d%02d %02d:%02d  %+10.4f  %10d  ",     # %15.10f %12.7f %7.3f  ",
+    printf (ODDF "%4d %02d %02d %02d %02d  %+10.4f  %10d  ",     # %15.10f %12.7f %7.3f  ",
                  $YY,$MM,$DD,$hh,$mm,    $qty,   $epoch);     # ,$cdyr,$cdyr-$YY0,$ddoy);
     # printf (ODDF "Legend:\nMM DD YYYY hh mm  __hT(m)_ _____cdyr______ __cdyr-YY0__ __ddoy_  ");
 	
