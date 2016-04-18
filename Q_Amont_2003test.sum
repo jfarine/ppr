@@ -1,0 +1,13 @@
+Summary file for ppr.pl processing of Q_Amont_2003test.tod
+
+168 points processed
+0 spates found (dqdt_qph >= 1.000 for 10 consec. pts): longest ivl 0.00 days, highest ampl 0.00 qty) [see .spt file (.sptl for long format)]
+0 gaps found (threshold = 61 min): longest 0.02 days into 00000000 00:00 [see .gap file]
+0 possible data overlaps found
+Absolute extrema in level in this data:
+  min: +53.491 m  at epoch=1046566860 [20030302 0101]
+  max: +256.366 m  at epoch=1046656860 [20030303 0201]
+Absolute extrema in rate of change of level in this data:
+  min: -12.739 m/h  at epoch=1046703660 [20030303 15:01] (qty=+214.986 m)
+  max: +36.192 m/h  at epoch=1046638860 [20030302 21:01] (qty=+146.705 m)
+

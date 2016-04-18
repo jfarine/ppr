@@ -1,0 +1,29 @@
+# RUNDATA File for sampling point: Amont
+#
+# Created 160415
+# By      JF for CV
+#
+# File format: 
+# - comment lines must start with a '#'; as many as desired, anywhere 
+# - for every range of validity, one block of n+1 lines (n=# parameters):
+#   - first line of block : date range. Specified as <start> and <end>, each as  YYYY/MM/DD hh:mm  (but will be loaded in memory as *epoch*) 
+#   - for each parameter, one more line with syntax "    $param_name = value " - line must start with whitespace/s !
+# - as many white spaces as >=1 are allowed between fields that show a space here (i.e. not between MM and DD)
+# - any parameter must be specified with its exacte variable name, equal sign, and value - all white spaces separated
+# - comments can be added at the end of any time or parameter line, starting with a '#'
+#
+# Parameters included:
+#
+# 1. gap detector - will look for gaps in data by flagging intervals between points > $thres_gap    # time in minutes!!!
+#    (this is about finding out when data is missing). Recommendation set it to ST+1 min (ST=sampling time)
+#
+    # test commentaire pas au début - avant block
+1988/03/05 00:00    2023/12/30 23:59 # comments can be added here too (#BUG7#: end time shows up as 2024 if set to 1 min before midnight !!)
+    # test commentaire pas au début - avant paramètre
+    $thres_gap =  61 
+2024/01/01 00:00    2025/09/29 23:59  # coucou Sanglière
+# on peut aussi rajouter une ligne de commentaires avant un paramètre
+    $thres_gap =  31
+# et meme avant un bloc de temps
+2025/09/30 00:00    2026/12/31 23:59
+    $thres_gap =  16  # (00)
