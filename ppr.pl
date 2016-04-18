@@ -928,7 +928,7 @@ while(<IDF>) {
                     # if($tsls_d < 0) {
                     #     $tsls_d += &dysize($YY-1);
                     # }
-                    ### NOT SURE ABOUT THSI ONE THEN        ### CHECK THIS OUT ###
+                    ### NOT SURE ABOUT THSI ONE THEN        ### CHECK THIS OUT ### 160418 JF: this is legit: update extremum if applicable
                     if($tsls_d > $tsls_d_max) {
                         $tsls_d_max = $tsls_d;
                         ### Odd that I did nto want to record *when* this maximum was found ..
@@ -1048,7 +1048,7 @@ while(<IDF>) {
             # for peak scanning - trigger on slope change from ($n_thres_up consecutive +) to (-) after a minimum
 			
             # following check only returns 1 if **all but the last** elements in last_slopeup_vals are 1 (cond met)
-            $peak_cond_met=1;
+            $peak_cond_met=1;  ## 160418 JF: a bit of a misnomer: this is saying "all points so far are still going up" - a condition to be met up to the peak
             # important: do *not* use current point ! we want it have a neg slope so peak is hard-coded  @ last point ..
             # yes, yes, yes.. # array elements increased in test above, hence no '-1' below (and line above still holds)
             for($i=0;$i<$n_thres_up;$i++){
@@ -1058,7 +1058,7 @@ while(<IDF>) {
             shift(@last_slopeup_vals);
             printf (STDOUT " ndata=%5d  qty=%+7.4f  dqdt_qph=%+8.4f  peak_cond_met=%1d nspate=%1d  -- peak conds: ",
                             $ndata,$qty,$dqdt_qph,$peak_cond_met,$nspate)  if ($verbose);
-            # 160417 - what is this test ? Ensuring that it is not going up ?
+            # 160417 - what is this test ? Ensuring that it is not going up ? ## 160418 JF NO ! this is the first point where the slope goes below threshold - it **is the top of the peak**
             if($dqdt_qph <= $thres_up && $peak_cond_met == 1 
                                       && $nspate > 0){
                 printf (STDOUT " passed ++++++") if ($verbose);
@@ -1095,7 +1095,7 @@ while(<IDF>) {
                 # reset the min at the max, so can scan for new min from now on ..
                 &setmin();
             } else {
-                printf (STDOUT " failed --\n") if ($verbose);
+                printf (STDOUT " failed --\n") if ($verbose); ## 160718 JF: should also tell OSLF ?
                 $is_max=0;
             }
         } # if ndata > n_thres_up+1
