@@ -26,13 +26,13 @@ while(<IDF>){
         using dqdt_qph, thres_up/dn: set up/dn_met;
         push to last_slopeup/dn_vars;
         if(n_data > n_recent2consider){
-            sum=SUM(last_thres_vals)[0..n_recent2consider];
+            sum=SUM(last_thres_vals)[0..(n_recent2consider)];
             if(ndata > n_recent2consider+3){
-                dq_local=1000*(Delta[n_recent2consider]-[0]);
+                dq_local=1000*(Delta([n_recent2consider]-[0]));
             }
             if(sum > n_slopeup_above_thres
                && last_thres_vals[0]
-               && last_thres_vals[n_recent2consider-1]]
+               && last_thres_vals[n_recent2consider-1]
                && dq_local > dq_local_min){
                 in_spate = 1;
             } else {
@@ -81,7 +81,7 @@ while(<IDF>){
                 STDOUT "passed";
                 is_max=1;
                 qty_delta=Delta qty_max-base;
-                if(applicable){
+                if(qty > dq_max ?){
                     update dq_max;
                 }
                 get Delta_epoch/day;
@@ -91,14 +91,35 @@ while(<IDF>){
                 }
                 print to ODSLF;
                 peak_passed = 1;
-                set_min();
+                setmin();
             } else {
                 STDOUT "failed";
                 is_max = 0;
             }
         }
         if(ndata > n_thres_dn+1){
-            SIMILIAR BLOCK TO ABOVE FOR down;
+            if(all last_slopedn_vals[0..(n_thres_dn-1)] = 1){
+                through_cond_met = 1;
+            } else {
+                through_cond_met = 0;
+            }
+            shift(last_lopedn_vals);
+            msg STDOUT;
+            if(dqdt_qph <= thres_dn
+              && peak(through?)_cond_met == 1
+              && nspate > 0){
+                STDOUT "passed";
+                is_min=1;
+                qty_delta=Delta qty_min-max;
+                get Delta_epoch/day;
+                STDOUT time, Deltas;
+                print to ODSLF;
+                through_passed = 1;
+                setmax();
+            } else {
+                STDOUT "failed";
+                is_min = 0;
+            }
         }
     }
     print to O files;

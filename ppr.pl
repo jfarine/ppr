@@ -1117,17 +1117,17 @@ while(<IDF>) {
             printf (STDOUT " ndata=%5d  qty=%+7.4f  dqdt_qph=%+8.4f  through_cond_met=%1d nspate=%1d  -- through conds: ",
                             $ndata,$qty,$dqdt_qph,$through_cond_met,$nspate)  if ($verbose);
             # 160417 looks like a through condition passed here
-            if($dqdt_qph <= $thres_dn && $peak_cond_met == 1 && $nspate > 0){
+            if($dqdt_qph <= $thres_dn && $peak_cond_met == 1 && $nspate > 0){ #BUG9# should this be "through" and not "peak" ? 160418 JF
                 printf (STDOUT " passed ++++++") if ($verbose);
                 $is_min=1;
                 # $qty_delta is unique to peaks in spates - comment out here
-                $qty_delta_dn = $qty_min - $qty_max;     # min - max  is a feature of a 'through' 
+                $qty_delta_dn = $qty_min - $qty_max;     # min - max  is a feature of a 'through' # 160418 JF - check signs
                 # if($qty_delta > $dq_max){
                 # 	  $dq_max = $qty_delta;
                 # }
                 $epoch_delta = $epoch_min - $epoch_max;  # min - max  is a feature of a 'through' but is it right for time #BUG# ? ### MUST CHECK ###
                 $days_delta = $epoch_delta/86400.;
-                $days_delta_dn = $days_delta;       #### added 160714 as it seemed to be missing, and is invoked in next printf stmnt
+                $days_delta_dn = $days_delta;       #### added 160417 as it seemed to be missing, and is invoked in next printf stmnt
                 # if($ddoy_delta < 0) {
                 #     $ddoy_delta += &dysize($YY-1);
                 # }
@@ -1416,7 +1416,7 @@ sub dysize {
   return  $yr ;
 }
 
-# set current values to new maximum
+# set current values to new maximum - ## 160418 JF typically done at a through, as the point is to get, from there on, the next local maximum
 sub setmax {
 	$MM_max=$MM;
 	$DD_max=$DD;
@@ -1429,7 +1429,7 @@ sub setmax {
 	$epoch_max=$epoch;
 }
 
-# set current values to new minimum
+# set current values to new minimum - ## 160418 JF typically done at a peak, as the point is to get, from there on, the next local minimum
 sub setmin {
 	$MM_min=$MM;
 	$DD_min=$DD;
