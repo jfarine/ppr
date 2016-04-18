@@ -505,7 +505,7 @@ open(OSF,  ">$sumnam") || die "Can't open output file: $sumnam, $!\n";
 # open(ODTF,">$testnam") || die "Can't open output file: $testnam, $!\n";  
 
 # print out some headers
-printf (ODDF "Legend:\nYYYYMMDD hh:mm  ___qty__  ___epoch__  ");  #_____cdyr______ __cdyr-YY0__ __ddoy_  ");
+printf (ODDF "Legend:\nYYYYMMDD hh:mm  ____qty___  ___epoch__  ");  #_____cdyr______ __cdyr-YY0__ __ddoy_  ");
 printf (ODDF "_dqdt_qph ");   # dqdt_cmpm");
 # printf (ODDF "  _DeltaSL_  From here on, a galore of 1/0 flags, in this order:\n");
 printf (ODDF "  From here on, a galore of 1/0 flags, in this order:\n");
@@ -513,7 +513,7 @@ printf (ODDF "above_thres new_spate  ");
 printf (ODDF "9.2E is DSL (Delta of avge slopes as (ASL1-ASL2)/ASL1)\n");
 printf (ODDF "up_met is_max  dn_met is_min  ");
 printf (ODDF "+7.1f: dq_local ");
-printf (ODDF "above_thres in_spate in_spate_last in_spate_last_but1 in_spate_last_but2");
+printf (ODDF "above_thres in_spate in_spate_last in_spate_last_but1 in_spate_last_but2   ");
 printf (ODDF "n_not_in_spate new_spate\n--- End of Legend ---\n");
 
 printf (ODSF "Legend:\nnspat _tsls_d  ___epoch__ ___qty__  \n--- End of Legend ---\n");
@@ -1157,9 +1157,9 @@ while(<IDF>) {
     # printing to other data files looks like a sinecure now..
     # Except that any new field added to ODDF will require updating ReadMoti.C
     # and break backward compatibility !
-    printf (ODF "%02d/%02d/%4d %02d:%02d, %+8.4f, %10d,  ",   # %12.7f, %7.3f, ",
+    printf (ODF "%02d/%02d/%4d %02d:%02d, %+10.4f, %10d,  ",   # %12.7f, %7.3f, ",
                 $MM,$DD,$YY,$hh,$mm,$qty,$epoch);             # ,$cdyr-$YY0,$ddoy); # $cdoy %5.1f
-    printf (ODDF "%4d%02d%02d %02d:%02d  %+8.4f  %10d  ",     # %15.10f %12.7f %7.3f  ",
+    printf (ODDF "%4d%02d%02d %02d:%02d  %+10.4f  %10d  ",     # %15.10f %12.7f %7.3f  ",
                  $YY,$MM,$DD,$hh,$mm,    $qty,   $epoch);     # ,$cdyr,$cdyr-$YY0,$ddoy);
     # printf (ODDF "Legend:\nMM DD YYYY hh mm  __hT(m)_ _____cdyr______ __cdyr-YY0__ __ddoy_  ");
 	
@@ -1178,13 +1178,13 @@ while(<IDF>) {
   
     printf (ODF  "  %+7.1f, ",$dq_local);
     printf (ODF  "  %1d,  %1d, %1d, %1d, %1d,",$above_thres,$in_spate,$in_spate_last,$in_spate_last_but1,$in_spate_last_but2);
-    printf (ODF  "  %1d, %1d\n",$n_not_in_spate,$new_spate);
+    printf (ODF  "  %4d, %1d\n",$n_not_in_spate,$new_spate);
 
     printf (ODDF "  %+7.1f ",$dq_local);
     # printf (ODDF "  +7.1f: dq_local ");
     printf (ODDF "  %1d  %1d %1d %1d %1d",$above_thres,$in_spate,$in_spate_last,$in_spate_last_but1,$in_spate_last_but2);
     # printf (ODDF "  above_thres in_spate in_spate_last in_spate_last_but1 in_spate_last_but2");
-    printf (ODDF "  %1d %1d\n",$n_not_in_spate,$new_spate);
+    printf (ODDF "  %4d %1d\n",$n_not_in_spate,$new_spate);
     # printf (ODDF "  n_not_in_spate new_spate\n--- End of Legend ---\n");
 
 
