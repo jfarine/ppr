@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# file name  : ppr.pl - Poulpette's Peak Recognizor - branched off 160415 from cl2dat.pl
+# file name  : ppr.pl - Personalized Peak Recognition - branched off 160415 from cl2dat.pl
 # author     : initial J. Farine for Milandre Turb+Q data.
 #              core developper C. Vuilleumier after 160415
 #              Note: throughout the code, the comments [ NSF = "blah" ] stand for "Note For Self" and apply to JF
