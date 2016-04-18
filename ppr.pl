@@ -505,16 +505,21 @@ open(OSF,  ">$sumnam") || die "Can't open output file: $sumnam, $!\n";
 # open(ODTF,">$testnam") || die "Can't open output file: $testnam, $!\n";  
 
 # print out some headers
-printf (ODDF "Legend:\nYYYY MM DD hh mm  ____qty___  ___epoch__  ");  #_____cdyr______ __cdyr-YY0__ __ddoy_  ");
-printf (ODDF "_dqdt_qph ");   # dqdt_cmpm");
+# modified by CV 160418 so that each column is described by exactly one keyword
+#printf (ODDF "Legend:\nYYYY MM DD hh mm  ____qty___  ___epoch__  ");  #_____cdyr______ __cdyr-YY0__ __ddoy_  ");
+printf (ODDF "YYYY MM DD hh mm qty epoch ");  #_____cdyr______ __cdyr-YY0__ __ddoy_  ");
+printf (ODDF "dqdt_qph ");   # dqdt_cmpm");
 # printf (ODDF "  _DeltaSL_  From here on, a galore of 1/0 flags, in this order:\n");
-printf (ODDF "  From here on, a galore of 1/0 flags, in this order:\n");
-printf (ODDF "above_thres new_spate  ");
-printf (ODDF "9.2E is DSL (Delta of avge slopes as (ASL1-ASL2)/ASL1)\n");
-printf (ODDF "up_met is_max  dn_met is_min  ");
-printf (ODDF "+7.1f: dq_local ");
-printf (ODDF "above_thres in_spate in_spate_last in_spate_last_but1 in_spate_last_but2   ");
-printf (ODDF "n_not_in_spate new_spate\n--- End of Legend ---\n");
+#printf (ODDF "  From here on, a galore of 1/0 flags, in this order:\n");
+#printf (ODDF "above_thres new_spate  "); # this should not be here (CV 160418)
+#printf (ODDF "9.2E is DSL (Delta of avge slopes as (ASL1-ASL2)/ASL1)\n");
+printf (ODDF "DSL ");
+printf (ODDF "up_met is_max dn_met is_min ");
+#printf (ODDF "+7.1f: dq_local ");
+printf (ODDF "dq_local ");
+printf (ODDF "above_thres in_spate in_spate_last in_spate_last_but1 in_spate_last_but2 ");
+#printf (ODDF "n_not_in_spate new_spate\n--- End of Legend ---\n");
+printf (ODDF "n_not_in_spate new_spate\n");
 
 printf (ODSF "Legend:\nnspat _tsls_d  ___epoch__ ___qty__  \n--- End of Legend ---\n");
 
