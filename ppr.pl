@@ -316,7 +316,7 @@ $n_avdhdt                  =      6;
 $n_recent_to_consider      =      4;   # number of consecutive data points that must be looked at for being above threshold or not
 $n_slope_up_above_thres    =      3;   # number of data points in the $n_recent_to_consider  most recent that must be above threshold
 $spate_thres_up            =      0;   # threshold value [qty/hour] (must experiment with data)    ### UNIT WAS cm/min before
-$n_not_in_spate_req        =      3;   # request that these many pts are "not in spate" prior to allowing a new spate (#BUG3#? - formerly said not not in spate)
+$n_not_in_spate_req        =      3;   # request that these many pts are "not in spate" prior to allowing a new spate (#BUG3#? - formerly said not not in spate) #$ 160418 JF unused !!
 $dq_local_min              =      3;   # min raise requested [ Note: when q was h, this was "in (in mm) between [0] and [3]" - TBD now ]
 ## the following is for peak/through detection
 # peak/through detector have a slightly different logics
@@ -612,6 +612,7 @@ while(<IDF>) {
     $epoch = $dt->epoch();                            ### ***of current point ***
     # have some merci for humans:
     $datetime = sprintf ("%4d%02d%02d %02d%02d",$YY,$MM,$DD,$hh,$mm);
+    print "\n--- Here at $datetime ---\n" if ($verbose);
 
     $ndata++;
     
@@ -675,7 +676,7 @@ while(<IDF>) {
             $found=1;
             $thres_gap = $rundata_thres_gap[$i];
             # # for testing during commissionning: 
-            # print " [found match in rd block $i ] ";
+            print "ndata=$ndata [found match in rd block $i ] \n" if($verbose);
             # goto AFTER-RD-LOOP;
             ## this is a hack - to get out of the loop
             ## $i=$#rundata_start_t;
@@ -712,7 +713,7 @@ while(<IDF>) {
             $n_thres_dn               = $db_n_thres_dn[$i];
             $thres_dn                 = $db_thres_dn[$i];
             # # for testing during commissionning: 
-            # print " [found match in rd block $i ] ";
+            print "ndata=$ndata [found match in db block $i ] \n";
             # goto AFTER-RD-LOOP;
             ## this is a hack - to get out of the loop
             ## $i=$#db_start_t;
@@ -825,7 +826,7 @@ while(<IDF>) {
         push(@last_DD_vals, $DD);
         push(@last_hh_vals, $hh);
         push(@last_mm_vals, $mm);
-        push(@last_qty_vals, $qty);
+        push(@last_qty_vals, $qty);  ## 160418 JF : qty also sotred, earlier, in another array, line 653
         # following two lines RETIRED 160417 and replaced by one just after
         # push(@last_cdyr_vals, $cdyr);
         # push(@last_ddoy_vals, $ddoy);
