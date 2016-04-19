@@ -713,7 +713,7 @@ while(<IDF>) {
             $n_thres_dn               = $db_n_thres_dn[$i];
             $thres_dn                 = $db_thres_dn[$i];
             # # for testing during commissionning: 
-            print "ndata=$ndata [found match in db block $i ] \n";
+            print "ndata=$ndata [found match in db block $i ] \n" if ($verbose);
             # goto AFTER-RD-LOOP;
             ## this is a hack - to get out of the loop
             ## $i=$#db_start_t;
