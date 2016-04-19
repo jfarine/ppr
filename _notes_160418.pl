@@ -364,7 +364,7 @@ par:
                 }
                 # i.e. $sum_ris should remain 0 if none of them was in_spate
                 ##### check if new spate ###  remember data now goes *forward* in time
-                if($in_spate && $sum_ris == 0 {
+                if($in_spate && $sum_ris == 0) {
                     $new_spate=1;
 
 ii) shifter tout le bloc entre $new_spate=1; et $last_spate_epoch=$epoch_base;
