@@ -448,7 +448,4 @@ nettoyages finaux:
 développement pur ("que du bonheur"):
 - quel algo est le meilleur ? Différent pour T et Q ? paramètres de DB suffisants ?
 - le coder 
-- keep smiling and having fun :-)    
-
-
     
