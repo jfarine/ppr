@@ -874,7 +874,7 @@ while(<IDF>) {
             }
             # get local change of level **in mm* - need current + previous 4 (not 3) points
             # Note! I don't understand the '+2' (and why not just '+1') - this is *bad*
-            if($ndata > $n_recent_to_consider+3){             #BUG-R# (took off the "+3" on 160417 that was in there)  ### MUST CHECK ###
+            if($ndata > $n_recent_to_consider){             #BUG-R# (took off the "+3" on 160417 that was in there)  ### MUST CHECK ###
                 # $dq_local = 1000.*($dq_local_vals[$n_recent_to_consider]-$dq_local_vals[0]);  ### 1000 multipliers was to get mm, removed 160417  ### MUST CHECK ###
                 $dq_local = ($dq_local_vals[$n_recent_to_consider]-$dq_local_vals[0]);
             }
