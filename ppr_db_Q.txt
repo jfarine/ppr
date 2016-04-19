@@ -37,10 +37,10 @@ Amont:
     # $n_spate_thres_up         =     10   # 4  
     $n_recent_to_consider     =     10   # 4
     $n_slope_up_above_thres   =      6   # 3
-    $spate_thres_up           =      1   # 0   
+    $spate_thres_up           =      0   # 0   
     $n_not_in_spate_req       =      3   # 
-    $dq_local_min             =      3   # 
-    $n_thres_up               =     10   # 4
+    $dq_local_min             =      1   # 
+    $n_thres_up               =     4   # 4
     $thres_up                 =      0   # 
     $n_thres_dn               =      4   # 
     $thres_dn                 =      0   # 

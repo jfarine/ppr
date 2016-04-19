@@ -805,7 +805,7 @@ while(<IDF>) {
         }
         # for spate detector - define status of current slope CPM
         # if($dhdt_cpm > $spate_thres_up) {   ### NEW 160417 ### going to qph changes the unit of $spate_thres_up
-        if($dqdt_qpm > $spate_thres_up) {
+        if($dqdt_qph > $spate_thres_up) { # qpm -> qph - typo corrected 160419 CV
             $above_thres = 1;
             # do not that now, must use $n_above_thres for previous pt, i.e. *before* updating it
             # $n_not_above_thres=0;
@@ -874,7 +874,7 @@ while(<IDF>) {
             }
             # get local change of level **in mm* - need current + previous 4 (not 3) points
             # Note! I don't understand the '+2' (and why not just '+1') - this is *bad*
-            if($ndata > $n_recent_to_consider){             #BUG-R# (took off the "+3" on 160417 that was in there)  ### MUST CHECK ###
+            if($ndata > $n_recent_to_consider+3){             #BUG-R# (took off the "+3" on 160417 that was in there)  ### MUST CHECK ###
                 # $dq_local = 1000.*($dq_local_vals[$n_recent_to_consider]-$dq_local_vals[0]);  ### 1000 multipliers was to get mm, removed 160417  ### MUST CHECK ###
                 $dq_local = ($dq_local_vals[$n_recent_to_consider]-$dq_local_vals[0]);
             }
