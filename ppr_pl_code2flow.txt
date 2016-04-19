@@ -6,17 +6,19 @@ Load and check database;
 open I/O files;
 // main event loop
 // read from <rfn>.tod
-while(<IDF>){
+before_IDF:
+if( read IDF)[next point]{
     get time;
-    n_data++;
+    ndata++;
     scan_for_xtremes;
     set PARAMs from rundata/DB;
-    if(n_data > 1){
+    ||push(@dq_local_vals,$qty)||;
+    if(ndata > 1){
         calc Dqs, Dts, dq/dt;
         // gap in
         // data ?
         if(dt > gap ?){
-            msg to STDOUT, ODGF;
+            <msg STDOUT, ODGF>;
             update xtreme vars;
         } else {
             update extrema;
@@ -24,105 +26,141 @@ while(<IDF>){
         // overlap
         // condition ?
         if(dt < 0?){
-            msg out;
+            <msg STDOUT>;
             incr counters;
         }
-        using dqdt_qpm, spate_thres_up: set above_thres;
-        push to last_thres_vals;
-        using dqdt_qph, thres_up/dn: set up/dn_met;
-        push to last_slopeup/dn_vars;
+        // **DB spate_thres_up**
+        if(dqdt_qpm > spate_thres_up) {
+            above_thres = 1;
+        } else {
+            above_thres = 0;
+        }
+        ||push(@last_thres_vals, $above_thres)||;
+        // **DB thres_up**
+        if(dqdt_qph > thres_up) {
+            up_met = 1;
+        } else {
+            up_met = 0;
+        }
+        ||push(@last_slopeup_vals,$up_met)||;
+        // **DB thres_dn**
+        if(dqdt_qph <= thres_dn) {
+            dn_met = 1;
+        } else {
+            dn_met = 0;
+        }
+        ||push(@last_slopedn_vals,$dn_met)||;
         // current point
         // in_spate cond'n ?
-        if(n_data > n_recent2consider){
-            sum=SUM(last_thres_vals)(0..n_recent2consider);
-            if(ndata > n_recent2consider+3){
-                dq_local=1000*(Delta(n_recent2consider)-(0));
-            }
-            if(sum > n_slopeup_above_thres
+        // ** DB n_recent_to_consider**
+        if(ndata > n_recent_to_consider){
+            sum=SUM(last_thres_vals)
+            (0..n_recent_to_consider);
+            dq_local=dq_local_vals
+            ((n_recent_to_consider)-(0));
+            // **DB n_slope_up_above_thres**
+            // **DB n_recent_to_consider**
+            // **DB dq_local_min**
+            if(sum > n_slope_up_above_thres
                && last_thres_vals(0)
-               && last_thres_vals(n_recent2consider-1)
+               && last_thres_vals(n_recent_to_consider-1)
                && dq_local > dq_local_min){
                 in_spate = 1;
             } else {
                 in_spate = 0;
             }
-            // recent points
-            // ID new spate ?
-            if(in_spate && !in_spate_last
-              &&  !in_spate_last_but1
-              &&  !in_spate_last_but2){
-                new_spate = 1;
-                n_spate++;
-                peak_passed = 0;
-            } else {
-                new_spate = 0;
-            }
-            if(new_spate){
-                set qty_base, epoch_base;
-                if(n_spate = 1){
-                    tsls_d = Delta(epochs)/86400;
+            ||push(@last_in_spate_vals,
+              $in_spate)||;
+            if(ndata > n_recent_to_consider
+               +n_not_in_spate_req){
+                sum_ris=SUM(last_in_spate_vals)
+                (0..n_not_in_spate_req);
+                // recent points
+                // ID new spate ?
+                if(in_spate && sum_ris=0){
+                    new_spate = 1;
+                    n_spate++;
+                    peak_passed = 0;
                 } else {
-                    tsls_d = 0;
-                    tsls_d_max = 0;
+                    new_spate = 0;
                 }
-                if(n_spate > 1){
-                    Output "\n" to files;
+                if(new_spate){
+                    set qty_base, epoch_base;
+                    if(n_spate = 1){
+                        tsls_d = Delta(epochs)/86400;
+                    } else {
+                        tsls_d = 0
+                        tsls_d_max = 0;
+                    }
+                    if(n_spate > 1){
+                        <Output "\n" to files>;
+                    }
+                    <Output Findings to 
+                    STDOUT, ODSF, ODSLF>;
+                    last_spate_epoch = epoch_base;
                 }
-                Output Findings to STDOUT, ODSF, ODSLF;
-                make current epoch last_;
+                ||shift(@last_in_spate_vals)||;
             }
-            shift(stacks);
+            ||shift(@dq_local_vals)
+              shift(@last_thres_vals)
+              shift(datetime stacks)||;
         }
-        if(n_data > 8){
+        if(ndata > 8){
             using @tt,@ll, define SL1,2;
             calc DSL;
         }
+        // **DB n_thres_up**
         if(ndata > n_thres_up+1){
+            // **DB n_thres_up**
             if(all last_slopeup_vals(0..(n_thres_up-1)) = 1){
                 peak_cond_met = 1;
             } else {
                 peak_cond_met = 0;
             }
-            shift(last_lopeup_vals);
-            msg STDOUT;
+            ||shift(@last_slopeup_vals)||;
+            <msg STDOUT>;
             // peak
             // detection
+            // **DB n_thres_up**
             if(dqdt_qph <= thres_up
               && peak_cond_met == 1
               && nspate > 0){
-                STDOUT "passed";
+                <STDOUT "passed">;
                 is_max=1;
-                qty_delta=Delta qty_max-base;
+                qty_delta=qty_max-qty_base;
                 if(qty > dq_max ?){
                     update dq_max;
                 }
                 get Delta_epoch/day;
-                STDOUT time, Deltas;
+                <STDOUT time, Deltas>;
                 if(peak_passed){
-                    "\n" to STDOUT, O files;
+                    <"\n" to STDOUT, O files;>
                 }
-                print to ODSLF;
+                <print to ODSLF>;
                 peak_passed = 1;
                 setmin();
             } else {
-                STDOUT "failed";
+                <STDOUT "failed">;
                 is_max = 0;
             }
         }
+        // **DB n_thres_dn**
         if(ndata > n_thres_dn+1){
+            // **DB n_thres_dn**
             if(all last_slopedn_vals(0..(n_thres_dn-1)) = 1){
                 through_cond_met = 1;
             } else {
                 through_cond_met = 0;
             }
-            shift(last_lopedn_vals);
-            msg STDOUT;
+            ||shift(last_lopedn_vals)||;
+            <msg STDOUT>;
             // through
             // detection
+            // **DB n_thres_dn**
             if(dqdt_qph <= thres_dn
               && peak(through?)_cond_met == 1
               && nspate > 0){
-                STDOUT "passed";
+                <STDOUT "passed">;
                 is_min=1;
                 qty_delta=Delta qty_min-max;
                 get Delta_epoch/day;
@@ -131,15 +169,17 @@ while(<IDF>){
                 through_passed = 1;
                 setmax();
             } else {
-                STDOUT "failed";
+                <STDOUT "failed">;
                 is_min = 0;
             }
         }
     }
-    print to O files;
-    update loop var's, history var's;
+    <print to O files>;
+    last_var's = current_var's;
+    loop before_IDF [next data point];
+} else [EOF] {
+    close most O files;
+    <conclusion print to O file>;
+    close O file;
+    end;
 }
-close most O files;
-conclusion print to O file;
-close O file;
-end;
