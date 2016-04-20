@@ -182,7 +182,7 @@ résumées ainsi:                                     # fonction de $ndata ($n_r
 while(<IDF>) {                                      # -1 0 1 2 3 3 3 3 3   -1 -1 0 1 2 2 3 3 3   -1 -1 -1 -1 -1 0 1 2 2   
 	  push(@dq_local_vals, $qty);                     #  0 1 2 3 4 4 4 4 4   -1 -1 0 1 2 2 3 3 3   -1 -1 -1 -1 -1 0 1 2 2            
     if($ndata > 1){                                 #  - 1 2 3 4 4 4 4 4    - -1 0 1 2 2 3 3 3    - -1 -1 -1 -1 0 1 2 2             
-        push(@last_thres_vals, $above_thres);       #  - 1 2 3 4 4 4 4 4    -  0 1 2 3 3 3 3 3    -  - -1 -1 -1 0 1 2 2       
+        push(@last_thres_vals, $above_thres);       #  - 1 2 3 4 4 4 4 4    -  0 1 2 3 3 3 3 3    - -1 -1 -1 -1 0 1 2 2       
         if($ndata > $n_recent_to_consider) {        #  - - - - 4 4 4 4 4    -  - - - 3 3 3 3 3    -  -  -  - -1 0 1 2 2          
             ... utilisation des @dq, thres ...  --->#  - - - - 4 4 4 4 4    -  - - - 3 3 3 3 3<-- -  -  -  - -1 0 1 2 2        
             push(@last_in_spate_vals, $in_spate);   #  - - - - 4 4 4 4 4    -  - - - 3 3 3 3 3    -  -  -  -  0 1 2 3 3    
@@ -191,12 +191,12 @@ while(<IDF>) {                                      # -1 0 1 2 3 3 3 3 3   -1 -1
                 ..utilisation du @last_in_spate..-->#  - - - - - - - 4 4    -  - - - - - - 3 3    -  -  -  -  - - - 3 3<--
                 shift(@last_in_spate_vals);         #  - - - - - - - 4 4    -  - - - - - - 3 3    -  -  -  -  - - - 2 2  
             }                                       #                                          
-            shift(@last_thres_vals);                #  - - - - 4 4 4 4 4    -  - - - 2 2 2 2 2    -  -  -  -  0 2 2 2 2
-            shift(@dq_local_vals);                  #  - - - - 3 3 3 3 3    -  - - - 2 2 2 2 2    -  -  -  -  0 2 2 2 2
+            shift(@last_thres_vals);                #  - - - - 4 4 4 4 4    -  - - - 2 2 2 2 2    -  -  -  -  0 1 2 2 2
+            shift(@dq_local_vals);                  #  - - - - 3 3 3 3 3    -  - - - 2 2 2 2 2    -  -  -  -  0 1 2 2 2
         } # if ndata > n_recent_to_consider                                               
-        ... plein d'autres choses se passent        #  - 1 2 3 3 3 3 3 3    -  0 1 2 2 2 2 2 2    - -1 -1 -1  0 2 2 2 2
+        ... plein d'autres choses se passent        #  - 1 2 3 3 3 3 3 3    -  0 1 2 2 2 2 2 2    - -1 -1 -1  0 1 2 2 2
     } # ndata > 1
-    ... et ici encore                               #  0 1 2 3 3 3 3 3 3   -1  0 1 2 2 2 2 2 2   -1 -1 -1 -1  0 2 2 2 2   
+    ... et ici encore                               #  0 1 2 3 3 3 3 3 3   -1  0 1 2 2 2 2 2 2   -1 -1 -1 -1  0 1 2 2 2   
 } # while (<IDF>) -- loop over data lines in .tod file
     
 En conséquence, le vecteur @dq_local_vals aura toujours:
