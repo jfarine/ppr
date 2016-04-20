@@ -418,6 +418,14 @@ La meme discussion s applique pour l'invocation de setmax() quand un creux est t
 
 6. TODOes au 160419
 nettoyages finaux:
+- tous les formats output:
+  - ODDF mis en ordre par CV (pour matlab)
+  - ODF (excel)
+  - STDOUT (pour humains, consommation immédiate)
+  - ODSLF (fichier .sptl ou .spate-long, pour humains)
+    => attention, les indices [0] sont actuellement imprimés. C'est incorrect car le [0]
+       dépend des params dans la DB ! C'est une NOUVELLE QUESTION.
+       Il faut décider à quel point se trouve le début de crue !! <=
 - propager les dernières modifs de CV (une variable passée de _qpm à _qph)... DB, doc,..
 - faire les checks de la section 5
 - clarifier et confirmer une fois pour toute tous les usages d'indices en dur:
@@ -445,7 +453,8 @@ nettoyages finaux:
     avec 'print "dernier indice de vecname = $#vecname\n";'. P.ex. à la ligne 881:
                 # print "highest index in dq_local_vals = $#dq_local_vals\n"; # says 3 when $n_spate_thres_up=4
     cadire: la taille du vecteur devrait etre de 4 et le dernier indice est 3 -- all good !
-développement pur ("que du bonheur"):
+développement pur:
 - quel algo est le meilleur ? Différent pour T et Q ? paramètres de DB suffisants ?
-- le coder 
+- algo de pic assez raffiné ? moyenner sur des points voisins (via nouveau param DB) ? idem creux ?
+- coder tout ça
     

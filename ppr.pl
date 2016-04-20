@@ -414,7 +414,7 @@ for ($i=0;$i<=$#rundata_start_t;$i++){
         }
     }
 }
-print "No time inconsistencies found in rundata file $rundata_fn of interest to sampling point $SP\n\n";
+print "No time inconsistencies found in rundata file $rundata_fn,\n  of interest to sampling point $SP\n\n" if($verbose);
 
 
 ### database: open, load and close DB file
@@ -456,7 +456,7 @@ for ($i=0;$i<=$#db_start_t;$i++){
         }
     }
 }
-print "No time inconsistencies found in DB file $db_fn of interest to sampling point $SP and observable $Obs\n\n";
+print "No time inconsistencies found in DB file $db_fn,\n  of interest to sampling point $SP and observable $Obs\n\n" if($verbose);
 
 # a convenient stop when debugging rundata + DB mods:
 # exit;
@@ -523,10 +523,10 @@ printf (ODDF "n_not_in_spate new_spate\n");
 
 printf (ODSF "Legend:\nnspat _tsls_d  ___epoch__ ___qty__  \n--- End of Legend ---\n");
 
-printf (ODSLF "Legend:\nns\# nspat (pt _____ID): YYYYMMDD hh:mm  _tsls_d  ___epoch__ ___qty__  ");
-printf (ODSLF "pk: YYYYMMDD hh:mm _qtymax_  _dqty__  Ddays+");
-printf (ODSLF "\n                                                                            ");
-printf (ODSLF "tr: YYYYMMDD hh:mm _qtymin_  _dqty__  Ddays-\n");
+printf (ODSLF "Legend:\nns\# nspat (pt _____ID): YYYYMMDD hh:mm  _tsls_d  ___epoch__ _____qty__  ");
+printf (ODSLF "pk: YYYYMMDD hh:mm ___qtymax_  ____dqty__  __Ddays+");
+printf (ODSLF "\n                                                                        ");
+printf (ODSLF "tr: YYYYMMDD hh:mm ___qtymin_  ____dqty__  __Ddays-\n");
 printf (ODSLF "--- End of Legend ---\n");
 
 printf (ODGF "threshold for detection of gaps = %d min\n",$thres_gap);
@@ -956,15 +956,15 @@ while(<IDF>) {
                 # 		printf (ODDF "  above_thres in_spate in_spate_last in_spate_last_but1 in_spate_last_but2");
                 # 		printf (ODDF "  n_not_in_spate new_spate\n--- End of Legend ---\n");
                 # 	}
-                printf (STDOUT "New spate \# %5d (pt %7d) on %4d%02d%02d %02d%02d (after %6.3f days) h=%+7.3fm ",
+                printf (STDOUT "\nNew spate \# %5d (pt %7d)\n at qty=%+10.3f on %4d%02d%02d %02d%02d (after %6.3f days) ",
                                 $nspate,$ndata,
-                                $last_YY_vals[0],$last_MM_vals[0],$last_DD_vals[0],$last_hh_vals[0],$last_mm_vals[0],
-                                $tsls_d, $last_qty_vals[0]);
+                                $last_qty_vals[0],
+                                $last_YY_vals[0],$last_MM_vals[0],$last_DD_vals[0],$last_hh_vals[0],$last_mm_vals[0],$tsls_d);
                 printf (ODSF "%5d %7.3f  %10d %+8.4f  ",
                               $nspate,
                               $tsls_d, $last_epoch_vals[0],$last_qty_vals[0]);
                               # printf (ODSF "Legend:\nnspat tsls_d  _____cdyr______ __hT(m)_  \n");
-                printf (ODSLF "ns\# %5d (pt %7d): %4d%02d%02d %02d:%02d  %7.3f  %10d %+8.4f  ",
+                printf (ODSLF "ns\# %5d (pt %07d): %4d%02d%02d %02d:%02d  %7.3f  %10d %+10.4f  ",
                               $nspate,$ndata,
                               $last_YY_vals[0],$last_MM_vals[0],$last_DD_vals[0],$last_hh_vals[0],$last_mm_vals[0],
                               $tsls_d, $last_epoch_vals[0],$last_qty_vals[0]);
@@ -1057,7 +1057,7 @@ while(<IDF>) {
             }
             # then clean array at the bottom
             shift(@last_slopeup_vals);
-            printf (STDOUT " ndata=%5d  qty=%+7.4f  dqdt_qph=%+8.4f  peak_cond_met=%1d nspate=%1d  -- peak conds: ",
+            printf (STDOUT " ndata=%5d  qty=%+10.4f  dqdt_qph=%+8.4f  peak_cond_met=%1d nspate=%1d  -- peak conds: ",
                             $ndata,$qty,$dqdt_qph,$peak_cond_met,$nspate)  if ($verbose);
             # 160417 - what is this test ? Ensuring that it is not going up ? ## 160418 JF NO ! this is the first point where the slope goes below threshold - it **is the top of the peak**
             if($dqdt_qph <= $thres_up && $peak_cond_met == 1 
@@ -1077,18 +1077,18 @@ while(<IDF>) {
                 # }
                 # now that peak was found, can close up entry on new spate
                     # output in two steps: 1 (above) - the start of the spate; 2 (here): when peak found
-                printf (STDOUT " to %+7.3fm on %4d%02d%02d %02d%02d (dq=%6.3fm over %6.3f days)",
+                printf (STDOUT "\n to qty=%+10.3f on %4d%02d%02d %02d%02d (dq=%10.3f over %6.3f days)+",
                         $qty_max,$YY_max,$MM_max,$DD_max,$hh_max,$mm_max,$qty_delta,$days_delta);        ### NOTE: $days_delta was $ddoy_delta
                 # reset min to here, so as to look for next min down from the peak
                 if($peak_passed == 1){
-                    printf (STDOUT "\n                                                                            ");
-                    printf (ODSLF "\n                                                                            ");
+                    # printf (STDOUT "\n                                                                            ");
+                    printf (ODSLF "\n                                                                        ");
                     # printf (ODSLF "\n                                                                            ");
                 }
                 # 141021: comment for now ("0,>1 nspates" problem)
                 # printf (ODSF "%15.10f %+8.4f  %+7.3f  %6.3f  ",
                 # 	$epoch_max,$qty_max, $qty_delta,$ddoy_delta);
-                printf (ODSLF "pk: %4d%02d%02d %02d:%02d %+8.4f  %+7.3f  %6.3f",
+                printf (ODSLF "pk: %4d%02d%02d %02d:%02d %+10.4f  %+10.3f  %6.3f",
                                $YY_max,$MM_max,$DD_max,$hh_max,$mm_max,
                                $qty_max, $qty_delta,$days_delta);        ### NOTE: $days_delta was $ddoy_delta
                 $peak_passed=1;
@@ -1115,7 +1115,7 @@ while(<IDF>) {
             }
             # then clean array at the bottom
             shift(@last_slopedn_vals);
-            printf (STDOUT " ndata=%5d  qty=%+7.4f  dqdt_qph=%+8.4f  through_cond_met=%1d nspate=%1d  -- through conds: ",
+            printf (STDOUT " ndata=%5d  qty=%+10.4f  dqdt_qph=%+8.4f  through_cond_met=%1d nspate=%1d  -- through conds: ",
                             $ndata,$qty,$dqdt_qph,$through_cond_met,$nspate)  if ($verbose);
             # 160417 looks like a through condition passed here
             if($dqdt_qph <= $thres_dn && $peak_cond_met == 1 && $nspate > 0){ #BUG9# should this be "through" and not "peak" ? 160418 JF
@@ -1135,17 +1135,17 @@ while(<IDF>) {
                 
                 # now that through was found, can close up entry on new spate
                 # output in two steps: 1 (above) - the start of the spate; 2 (here): when peak found
-                printf (STDOUT " to %+7.3fm on %4d%02d%02d %02d%02d (dq=%6.3f  over %6.3f days)",
+                printf (STDOUT "\n to qty=%+10.3f on %4d%02d%02d %02d%02d (dq=%10.3f over %6.3f days)-",
                                 $qty_max,$YY_max,$MM_max,$DD_max,$hh_max,$mm_max,$qty_delta_dn,$days_delta_dn);
                 # reset min to here, so as to look for next min down from the peak
                 # if($through_passed == 1){
                 # 	  printf (STDOUT "\n                                                                            ");
-                printf (ODSLF "\n                                                                            ");
+                printf (ODSLF "\n                                                                        ");
                 # }
                 # 141021: comment for now ("0,>1 nspates" problem)
                 # printf (ODSF "%15.10f %+8.4f  %+7.3f  %6.3f  ",
                 # 	$epoch_min,$qty_min, $qty_delta_dn,$ddoy_min);
-                printf (ODSLF "tr: %4d%02d%02d %02d:%02d %+8.4f  %+7.3f  %6.3f",
+                printf (ODSLF "tr: %4d%02d%02d %02d:%02d %+10.4f  %+10.3f  %6.3f",
                               $YY_min,$MM_min,$DD_min,$hh_min,$mm_min,
                               $qty_min, $qty_delta_dn, $days_delta_dn);
                 # printf (ODSFL "tr: _____epoch______ hTmax(m)  _dhT(m)  ddoy_at_min\n");
@@ -1228,13 +1228,9 @@ close(ODSLF);
 close(ODGF);
 # close(ODTF);
 
-printf (STDOUT "\n\n%d points processed in %s\n",$ndata,$tnam);
+printf (STDOUT "\n\nSummary:\n%d points processed in %s\n",$ndata,$tnam);
 printf (OSF    "Summary file for ppr.pl processing of %s\n\n%d points processed\n",$tnam,$ndata);
-$msg=sprintf("%d spates found (dqdt_qph >= %.3f for %d consec. pts): longest ivl %.2f days, highest ampl %.2f qty) [see .spt file (.sptl for long format)]\n",
-              $nspate, $spate_thres_up, $n_recent_to_consider, $tsls_d_max, $dq_max);
-printf (STDOUT "%s",$msg);
-printf (OSF    "%s",$msg);
-$msg=sprintf ("%d gaps found (threshold = %d min): longest %.2f days into %04d%02d%02d %02d:%02d [see .gap file]\n",
+$msg=sprintf ("%d gaps found\n  threshold = %d min\n  longest %.2f days into %04d%02d%02d %02d:%02d\n  -> see .gap file\n",
                 $ngap,$thres_gap,$gap_max/1440.,$YY_gmax,$MM_gmax,$DD_gmax,$hh_gmax,$mm_gmax);
 printf (STDOUT "%s",$msg);
 printf (OSF    "%s",$msg);
@@ -1242,17 +1238,21 @@ $msg=sprintf ("%d possible data overlaps found\n",
               $novlap);
 printf (STDOUT "%s",$msg);
 printf (OSF    "%s",$msg);
-$msg=sprintf ("Absolute extrema in level in this data:\n");
+$msg=sprintf("%d spates found\n  criteria: dqdt_qph >= %.3f for %d consec. pts\n  longest ivl %.2f days, highest ampl %.2f qty\n  -> see .spt file (.sptl for long format)\n",
+              $nspate, $spate_thres_up, $n_recent_to_consider, $tsls_d_max, $dq_max);
 printf (STDOUT "%s",$msg);
 printf (OSF    "%s",$msg);
-$msg=sprintf ("  min: %+7.3f m  at epoch=%10d [%s]\n  max: %+7.3f m  at epoch=%10d [%s]\n",
+$msg=sprintf ("absolute extrema in qty in this data:\n");
+printf (STDOUT "%s",$msg);
+printf (OSF    "%s",$msg);
+$msg=sprintf ("  min: %+10.3f qty  at epoch=%10d [%s]\n  max: %+10.3f qty  at epoch=%10d [%s]\n",
               $qty_abs_min, $qty_abs_min_epoch, $qty_abs_min_YMDhm, $qty_abs_max, $qty_abs_max_epoch, $qty_abs_max_YMDhm);
 printf (STDOUT "%s",$msg);
 printf (OSF    "%s",$msg);
-$msg=sprintf ("Absolute extrema in rate of change of level in this data:\n");
+$msg=sprintf ("absolute extrema in rate of change of qty in this data:\n");
 printf (STDOUT "%s",$msg);
 printf (OSF    "%s",$msg);
-$msg=sprintf ("  min: %+7.3f m/h  at epoch=%10d [%s] (qty=%+7.3f m)\n  max: %+7.3f m/h  at epoch=%10d [%s] (qty=%+7.3f m)\n\n",
+$msg=sprintf ("  min: %+10.3f qph  at epoch=%10d [%s] (qty=%+10.3f)\n  max: %+10.3f qph  at epoch=%10d [%s] (qty=%+10.3f)\n\n",
               $dqdt_abs_min, $dqdt_abs_min_epoch, $dqdt_abs_min_YMDhm, $dqdt_abs_min_qty, 
               $dqdt_abs_max, $dqdt_abs_max_epoch, $dqdt_abs_max_YMDhm, $dqdt_abs_max_qty);
 printf (STDOUT "%s",$msg);
