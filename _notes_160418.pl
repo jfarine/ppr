@@ -175,40 +175,47 @@ it). Similarly, the unshift and shift operators perform the corresponding action
 the “start” of the array (or the “left” side of an array, or the portion with the lowest
 subscripts). ]
 
-Les boucles principales peuvent être résumées ainsi:
-
-# loop over input data
-while(<IDF>) {
-	  push(@dq_local_vals, $qty);  
-    if($ndata > 1){
-        push(@last_thres_vals, $above_thres);
-        if($ndata > $n_recent_to_consider) {
-            ... utilisation des vecteurs ...
-            shift(@last_thres_vals);
-            shift(@dq_local_vals);
-        } # if ndata > n_recent_to_consider
-        ... plein d'autres choses se passent  
+Les boucles principales peuvent être                # Tableau de progression de l'index maximum des deux stacks en
+résumées ainsi:                                     # fonction de $ndata ($n_recent_to_consider=4, $n_not_in_spate_req=3)
+                                                    #  __dq_local_vals__   __last_thres_vals__   __last_in_spate_vals__            
+# loop over input data                       $ndata =  1 2 3 4 5 6 7 8 9    1  2 3 4 5 6 7 8 9    1  2  3  4  5 6 7 8 9
+while(<IDF>) {                                      # -1 0 1 2 3 3 3 3 3   -1 -1 0 1 2 2 3 3 3   -1 -1 -1 -1 -1 0 1 2 2   
+	  push(@dq_local_vals, $qty);                     #  0 1 2 3 4 4 4 4 4   -1 -1 0 1 2 2 3 3 3   -1 -1 -1 -1 -1 0 1 2 2            
+    if($ndata > 1){                                 #  - 1 2 3 4 4 4 4 4    - -1 0 1 2 2 3 3 3    - -1 -1 -1 -1 0 1 2 2             
+        push(@last_thres_vals, $above_thres);       #  - 1 2 3 4 4 4 4 4    -  0 1 2 3 3 3 3 3    -  - -1 -1 -1 0 1 2 2       
+        if($ndata > $n_recent_to_consider) {        #  - - - - 4 4 4 4 4    -  - - - 3 3 3 3 3    -  -  -  - -1 0 1 2 2          
+            ... utilisation des @dq, thres ...  --->#  - - - - 4 4 4 4 4    -  - - - 3 3 3 3 3<-- -  -  -  - -1 0 1 2 2        
+            push(@last_in_spate_vals, $in_spate);   #  - - - - 4 4 4 4 4    -  - - - 3 3 3 3 3    -  -  -  -  0 1 2 3 3    
+            if($ndata > $n_recent_to_consider
+                        +$n_not_in_spate_req) {     #  - - - - - - - 4 4    -  - - - - - - 3 3    -  -  -  -  - - - 3 3
+                ..utilisation du @last_in_spate..-->#  - - - - - - - 4 4    -  - - - - - - 3 3    -  -  -  -  - - - 3 3<--
+                shift(@last_in_spate_vals);         #  - - - - - - - 4 4    -  - - - - - - 3 3    -  -  -  -  - - - 2 2  
+            }                                       #                                          
+            shift(@last_thres_vals);                #  - - - - 4 4 4 4 4    -  - - - 2 2 2 2 2    -  -  -  -  0 2 2 2 2
+            shift(@dq_local_vals);                  #  - - - - 3 3 3 3 3    -  - - - 2 2 2 2 2    -  -  -  -  0 2 2 2 2
+        } # if ndata > n_recent_to_consider                                               
+        ... plein d'autres choses se passent        #  - 1 2 3 3 3 3 3 3    -  0 1 2 2 2 2 2 2    - -1 -1 -1  0 2 2 2 2
     } # ndata > 1
-    ... et ici encore  
+    ... et ici encore                               #  0 1 2 3 3 3 3 3 3   -1  0 1 2 2 2 2 2 2   -1 -1 -1 -1  0 2 2 2 2   
 } # while (<IDF>) -- loop over data lines in .tod file
     
 En conséquence, le vecteur @dq_local_vals aura toujours:
-- à l'index $n_recent_to_consider : la valeur du point courant
-- à l'index 0: la valeur du "$n_recent_to_consider"-nième point en arrière
+- à l'index max [$n_recent_to_consider] : la valeur du point courant
+- à l'index min [0] : la valeur du "$n_recent_to_consider"-nième point dans le passé
 
 Alors que les vecteurs qui ne sont initialisés que a partir de $ndata>1, tel que 
 @last_thres_vals, auront:
-- à l'index ($n_recent_to_consider)-1 : la valeur du point courant
-- à l'index 0: la valeur du "($n_recent_to_consider)-1"-nieme point en arriere
+- à l'index max [($n_recent_to_consider)-1] : la valeur du point courant
+- à l'index min [0] : la valeur du "($n_recent_to_consider)-1"-nieme point dans le passé
 
 Conséquences:
 a. c'est pour ça que dans la condition "in_spate", le '-1' apparait dans
-$last_thres_vals[$n_recent_to_consider-1] - c'est le point courant !
-b. c'est une *erreur* d'utiliser l'index [$n_recent_to_consider] pour tout vecteur
-manipulé par push/shift sauf @dq_local_vals
+   $last_thres_vals[$n_recent_to_consider-1] - c'est le point courant !
+b. c'est une erreur d'utiliser l'index [$n_recent_to_consider] pour tout vecteur
+   manipulé par push/shift sauf ceux initialisés avant 'if($ndata>1)' comme  @dq_local_vals
 
 Note rajoutée le 160419JF: la modif de code de la section 4 va rajouter un nouveau stack
-encore plus petit, Last_in_spate_vals .. les détails ne sont pas importants
+encore plus petit, @last_in_spate_vals .. meme principes, voir Tableau rajouté le 160420.
 
 
 3. Algorithme de détection des crues et des pics
