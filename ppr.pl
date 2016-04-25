@@ -785,7 +785,7 @@ while(<IDF>) {
 	  # check 1: $epoch is within time extrema in file
 	  if ($epoch < $rundata_start_epoch[0] || $epoch > $rundata_end_epoch[$#rundata_end_t]){
         $msg = sprintf (
-              "ERROR current point's time %s (epoch %s) out of scope of file %s:\n");
+              "ERROR current point's time %s (epoch %s) out of scope of file %s:\n",
            $datetime,$epoch,$rundata_fn);
         die($msg);
 	  }
@@ -820,8 +820,8 @@ while(<IDF>) {
 	  # check 1: $epoch is within time extrema in file
 	  if ($epoch < $db_start_epoch[0] || $epoch > $db_end_epoch[$#db_end_t]){
         $msg = sprintf (
-              "ERROR current point's time %s (epoch %s) out of scope of file %s:\n");
-           $datetime,$epoch,$db_fn);
+              "ERROR current point's time %s (epoch %s) out of scope of file %s:\n",
+                         $datetime,$epoch,$db_fn);
         die($msg);
 	  }
 	  $found=0;
@@ -932,13 +932,13 @@ while(<IDF>) {
     	  # check for data overlap
     	  if($dt_min < 0){
             printf (STDOUT
- "\n\n--> negative time interval to %4d/%02d/%02d %02d:%02d for %8.0f min, %7.2f days"
+ "\n\n--> negative time interval to %4d/%02d/%02d %02d:%02d for %8.0f min, %7.2f days",
                             $YY,$MM,$DD,$hh,$mm,$dt_min,$dt_d,$thres_gap);
-            printf (STDOUT "  -- CHECK FOR DATA OVERLAP!\n",
+            printf (STDOUT "  -- CHECK FOR DATA OVERLAP!\n");
             printf (ODGF 
- "\n\nnegative time interval to %4d/%02d/%02d %02d:%02d for %8.0f min, %7.2f days"
+ "\n\nnegative time interval to %4d/%02d/%02d %02d:%02d for %8.0f min, %7.2f days",
                           $YY,$MM,$DD,$hh,$mm,$dt_min,$dt_d,$thres_gap);
-            printf (ODGF "  -- CHECK FOR DATA OVERLAP!\n",
+            printf (ODGF "  -- CHECK FOR DATA OVERLAP!\n");
             $novlap++;
         }
         # for spate detector - define status of current slope CPM
