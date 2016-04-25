@@ -10,9 +10,32 @@ before_IDF:
 if( read IDF)[next point]{
     get time;
     ndata++;
-    scan_for_xtremes;
-    set PARAMs from rundata/DB;
-    ||push(@dq_local_vals,$qty)||;
+    # scan_for_xtremes;
+    if($ndata == 1) {
+		    setmax();
+		    setmin();
+    } else {
+        if($qty > $qty_max) {
+			      setmax();
+        }
+        if($qty < $qty_min) {
+			      setmin();
+        }
+    }
+    ||push(@dq_local_vals,$qty)
+      push(@last_datetime_vals, $datetime)||;
+    // $thres_gap 
+    set PARAMs from rundata;
+    // $n_recent_to_consider
+    // $n_slope_up_above_thres
+    // $spate_thres_up
+    // $n_not_in_spate_req
+    // $dq_local_min
+    // $n_thres_up
+    // $thres_up
+    // $n_thres_dn
+    // $thres_dn
+    set PARAMs from DB;
     if(ndata > 1){
         calc Dqs, Dts, dq/dt;
         // gap in
@@ -30,12 +53,14 @@ if( read IDF)[next point]{
             incr counters;
         }
         // **DB spate_thres_up**
-        if(dqdt_qpm > spate_thres_up) {
+        if(dqdt_qph > spate_thres_up) {
             above_thres = 1;
         } else {
             above_thres = 0;
         }
-        ||push(@last_thres_vals, $above_thres)||;
+        ||push(@last_thres_vals, $above_thres)
+          push(@last_qty_vals,$qty)
+          push(datetime stacks)||;
         // **DB thres_up**
         if(dqdt_qph > thres_up) {
             up_met = 1;
@@ -69,8 +94,7 @@ if( read IDF)[next point]{
             } else {
                 in_spate = 0;
             }
-            ||push(@last_in_spate_vals,
-              $in_spate)||;
+            ||push(@last_in_spate_vals,$in_spate)||;
             if(ndata > n_recent_to_consider
                +n_not_in_spate_req){
                 sum_ris=SUM(last_in_spate_vals)
@@ -93,7 +117,7 @@ if( read IDF)[next point]{
                         tsls_d_max = 0;
                     }
                     if(n_spate > 1){
-                        <Output "\n" to files>;
+                        <Output NL to files>;
                     }
                     <Output Findings to 
                     STDOUT, ODSF, ODSLF>;
@@ -103,6 +127,7 @@ if( read IDF)[next point]{
             }
             ||shift(@dq_local_vals)
               shift(@last_thres_vals)
+              shift(@last_qty_vals)
               shift(datetime stacks)||;
         }
         if(ndata > 8){
@@ -111,8 +136,10 @@ if( read IDF)[next point]{
         }
         // **DB n_thres_up**
         if(ndata > n_thres_up+1){
+            peak_cond_met = 1;
             // **DB n_thres_up**
-            if(all last_slopeup_vals(0..(n_thres_up-1)) = 1){
+            if(peak_cond_met *=  last_slopeup_vals
+               FOR ALL (0..(n_thres_up-1)) ){
                 peak_cond_met = 1;
             } else {
                 peak_cond_met = 0;
@@ -162,10 +189,10 @@ if( read IDF)[next point]{
               && nspate > 0){
                 <STDOUT "passed">;
                 is_min=1;
-                qty_delta=Delta qty_min-max;
-                get Delta_epoch/day;
-                STDOUT time, Deltas;
-                print to ODSLF;
+                qty_delta=qty_min-qtymax,
+                and Delta_epoch/day;
+                <STDOUT time, Deltas
+                print to ODSLF>;
                 through_passed = 1;
                 setmax();
             } else {
