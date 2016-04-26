@@ -1146,7 +1146,10 @@ while(<IDF>) {
                     #     $ddoy_delta += &dysize($YY-1);
                     # }
                     # set references for ***start of spate** (using "at last min" was *wrong*)
-                    $qty_base=$last_qty_vals[0];
+                    #$qty_base=$last_qty_vals[0];# modif 160426CV: $last_qty_vals[0] is qty value at point $ndata-($n_recent_to_consider-1) - i.e. point where raise is first observed
+                    $qty_base=$dq_local_vals[0]; # modif 160426CV: $dq_local_vals[0] is qty value at point $ndata-$n_recent_to_consider - i.e. last point before first raise
+                    printf (STDOUT "\n\nniveau de base avant modif %.4f",$qty_base);
+                    printf (STDOUT "\nproposition %.4f",$dq_local_vals[0]);
                     # $ddoy_base=$last_ddoy_vals[0];  ### NOTE 160417: replacing ddoy with
                                                       # epoch changes the units by factor 86400 !
                     $epoch_base=$last_epoch_vals[0];
@@ -1234,7 +1237,7 @@ while(<IDF>) {
             shift(@last_epoch_vals);
             # Note! I don't understand the '+2' (and why not just '+1') - this is *bad*
             # if($ndata > $nspate_thres_up+5){
-        		shift(@dq_local_vals);
+            shift(@dq_local_vals);
             shift(@last_datetime_vals);  
             # }
         } # if ndata > n_recent_to_consider
