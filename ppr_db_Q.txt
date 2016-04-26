@@ -20,52 +20,51 @@
 # ## RETIRED on 160417 ##   n_spate_thres_up   = number of consecutive data points that must be above threshold
 #   $n_recent_to_consider     = number of consecutive data points that must be looked at for being above threshold or not
 #   $n_slope_up_above_thres   = number of data points in the $n_recent_to_consider  most recent that must be above threshold
-#   $spate_thres_up           = threshold value [qty/hour] (must experiment with data) ### UNIT WAS cm/min before ###
+#   $spate_thres_up           = raise threshold value between two data points [qty/hour] (must experiment with data) ### UNIT WAS cm/min before ###
 #   $n_not_in_spate_req       = request that these many pts are "not in spate" prior to allowing a new spate (#BUG3#? - formerly said not not in spate)
-#   $dq_local_min             = min raise requested (in mm) between [0] and [3]
+#   $dq_local_min             = min raise requested (in qty units) between current and current-n_recent_to_consider points
 ## the following is for peak/through detection
 # peak/through detector have a slightly different logics
 # careful with confusion up/down here: read <whatever> "for ending going _up/_dn after passing the point"
 #   $n_thres_up               = number of consecutive data points that must slope *down* before the one going up
-#   $thres_up                 = threshold value [qty/hour] (must experiment with data) 
+#   $thres_up                 = raise threshold value between two data points [qty/hour] (must experiment with data) 
 #   $n_thres_dn               = number of consecutive data points that must slope *up* before the one going down
-#   $thres_dn                 = threshold value [qty/hour] (must experiment with data)
+#   $thres_dn                 = decrease threshold value between two data points [qty/hour] (must experiment with data)
 #   (total 9)
 #   
 Amont:
-1988/03/05 00:00    2023/12/30 23:59
-    # $n_spate_thres_up         =     10   # 4  
-    $n_recent_to_consider     =     10   # 4
-    $n_slope_up_above_thres   =      6   # 3
-    $spate_thres_up           =      0   # 0   
-    $n_not_in_spate_req       =      3   # 
-    $dq_local_min             =      1   # 
+#1988/03/05 00:00    2023/12/30 23:59
+2003/01/01 00:00    2003/04/01 03:00
+    $n_recent_to_consider     =     6  # 4
+    $n_slope_up_above_thres   =      4  # 3
+    $spate_thres_up           =      0   # variation ponctuelle, en /h
+    $n_not_in_spate_req       =      5   # 
+    $dq_local_min             =      50   # variation sur les 'recent to consider'
     $n_thres_up               =     4   # 4
     $thres_up                 =      0   # 
     $n_thres_dn               =      4   # 
     $thres_dn                 =      0   # 
-2024/01/01 00:00    2025/09/29 23:59
+2003/04/01 03:01    2003/09/30 23:00
+    $n_recent_to_consider     =     3   # 4
+    $n_slope_up_above_thres   =      2   # 3
+    $spate_thres_up           =      0   # 0   
+    $n_not_in_spate_req       =      3   # 
+    $dq_local_min             =      1.49   # 
+    $n_thres_up               =     4   # 4
+    $thres_up                 =      0   # 
+    $n_thres_dn               =      4   # 
+    $thres_dn                 =      0   # 
+2003/09/30 23:01    2003/12/31 23:59
     # $n_spate_thres_up         =     10   # 4  
-    $n_recent_to_consider     =     10   # 4
-    $n_slope_up_above_thres   =      6   # 3
-    $spate_thres_up           =      2   # 0   
-    $n_not_in_spate_req       =      4   # 
-    $dq_local_min             =      5   # 
-    $n_thres_up               =     11   # 4
-    $thres_up                 =      1   # 
-    $n_thres_dn               =      5   # 
-    $thres_dn                 =      1   # 
-2025/09/30 00:00    2026/12/31 23:59
-    # $n_spate_thres_up         =     10   # 4  
-    $n_recent_to_consider     =     10   # 4
-    $n_slope_up_above_thres   =      6   # 3
-    $spate_thres_up           =     11   # 0   
-    $n_not_in_spate_req       =     13   # 
-    $dq_local_min             =     13   # 
-    $n_thres_up               =     20   # 4
-    $thres_up                 =     10   # 
-    $n_thres_dn               =     14   # 
-    $thres_dn                 =     10   # 
+    $n_recent_to_consider     =     6  # 4
+    $n_slope_up_above_thres   =      4  # 3
+    $spate_thres_up           =      0   # 0   
+    $n_not_in_spate_req       =      3   # 
+    $dq_local_min             =      20   # 
+    $n_thres_up               =     4   # 4
+    $thres_up                 =      0   # 
+    $n_thres_dn               =      4   # 
+    $thres_dn                 =      0   # 
 Gal80:
 1988/03/05 00:00    2023/12/30 23:59
     # $n_spate_thres_up         =     10   # 4  
@@ -168,4 +167,3 @@ Saivu:
     $thres_up                 =      0   # 
     $n_thres_dn               =      4   # 
     $thres_dn                 =      0   # 
-
