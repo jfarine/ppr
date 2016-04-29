@@ -563,55 +563,61 @@ open(OSF,  ">$sumnam") || die "Can't open output file: $sumnam, $!\n";
 # open(ODTF,">$testnam") || die "Can't open output file: $testnam, $!\n";  
 
 # print out some headers
-# REF FOR ODDF
-# 1=up_met  2=is_max    3=dn_met  4=is_min    5=above_thres  6=in_spate    7=n_not_in_spate  8=new_spate
-# --- End of Legend ---
-# YYYY MM DD hh mm  ____qty___  ___epoch__  _dqdt_qph  ___DSL___  t x  t n  ____dq____  _dq_local_  s e     e e
-# 2014 12 08 08 00     -7.5515  1418025600   +0.00000  +0.00E+00  0 9  0 9     +0.0000     +0.0000  0 0     0 0
-$padding1 = 
- "                                                                ";
-$padding2 =                                                              "                          ";
-# modified by CV 160418 so that each column is described by exactly one keyword
-# printf (ODDF "Legend:\n");
-printf (ODDF "YYYY MM DD hh mm  ____qty___  ___epoch__  ");
-# pirate !# printf (ODDF "YYYY MM DD hh mm qty epoch ");
-printf (ODDF "_dqdt_qph  ");   # dqdt_cmpm");
-# printf (ODDF "  _DeltaSL_  From here on, a galore of 1/0 flags, in this order:\n");
-#printf (ODDF "  From here on, a galore of 1/0 flags, in this order:\n");
-#printf (ODDF "above_thres new_spate  "); # this should not be here (CV 160418)
-#printf (ODDF "9.2E is DSL (Delta of avge slopes as (ASL1-ASL2)/ASL1)\n");
-printf (ODDF "___DSL___  ");
-# printf (ODDF "up_met is_max  dn_met is_min  ");
-# printf (ODDF "1 2  3 4  ");
-# printf (ODDF "u i  d i  ");
-  printf (ODDF "_ _  _ _  ");
-#printf (ODDF "+7.1f: dq_local ");
-printf (ODDF "____dq____  _dq_local_  ");
-# printf (ODDF "above_thres in_spate ");
-# pirate !# in_spate_last in_spate_last_but1 in_spate_last_but2 ");
-# printf (ODDF "n_not_in_spate new_spate\n--- End of Legend ---\n");
-# printf (ODDF "5 6  ___7 8\n"); 
-# printf (ODDF "a i  n_!i n\n"); 
-  printf (ODDF "a _  n_no _\n"); 
-# printf (ODDF "1=up_met  2=is_max    3=dn_met  4=is_min\
-#  5=above_thres  6=in_spate    7=n_not_in_spate  8=new_spate\n");
-printf (ODDF "%s        %sb       t  \n",$padding1,$padding2);
-printf (ODDF "%s        %so       | n\n",$padding1,$padding2);
-printf (ODDF "%s        %sv i     i e\n",$padding1,$padding2);
-printf (ODDF "%s        %se n     n w\n",$padding1,$padding2);
-printf (ODDF "%su i  d i%s| |     | |\n",$padding1,$padding2);
-printf (ODDF "%sp s  n s%st s     s s\n",$padding1,$padding2);
-printf (ODDF "%s| |  | |%sh p     p p\n",$padding1,$padding2);
-printf (ODDF "%sm m  m m%sr a     a a\n",$padding1,$padding2);
-printf (ODDF "%se a  e i%se t     t t\n",$padding1,$padding2);
-printf (ODDF "YYYY MM DD hh mm  ____qty___  ___epoch__  ");
-printf (ODDF "_dqdt_qph  ");
-printf (ODDF "___DSL___  ");
-printf (ODDF "t x  t n  ");
-printf (ODDF "____dq____  _dq_local_  ");
-printf (ODDF "s e     e e\n");
-# printf (ODDF "--- End of Legend ---\n");
-# printf (ODDF "n_not_in_spate new_spate\n");
+## REF FOR ODDF
+## 1=up_met  2=is_max    3=dn_met  4=is_min    5=above_thres  6=in_spate    7=n_not_in_spate  8=new_spate
+## --- End of Legend ---
+## YYYY MM DD hh mm  ____qty___  ___epoch__  _dqdt_qph  ___DSL___  t x  t n  ____dq____  _dq_local_  s e     e e
+## 2014 12 08 08 00     -7.5515  1418025600   +0.00000  +0.00E+00  0 9  0 9     +0.0000     +0.0000  0 0     0 0
+#$padding1 = 
+# "                                                                ";
+#$padding2 =                                                              "                          ";
+## modified by CV 160418 so that each column is described by exactly one keyword
+## printf (ODDF "Legend:\n");
+#printf (ODDF "YYYY MM DD hh mm  ____qty___  ___epoch__  ");
+## pirate !# printf (ODDF "YYYY MM DD hh mm qty epoch ");
+#printf (ODDF "_dqdt_qph  ");   # dqdt_cmpm");
+## printf (ODDF "  _DeltaSL_  From here on, a galore of 1/0 flags, in this order:\n");
+##printf (ODDF "  From here on, a galore of 1/0 flags, in this order:\n");
+##printf (ODDF "above_thres new_spate  "); # this should not be here (CV 160418)
+##printf (ODDF "9.2E is DSL (Delta of avge slopes as (ASL1-ASL2)/ASL1)\n");
+#printf (ODDF "___DSL___  ");
+## printf (ODDF "up_met is_max  dn_met is_min  ");
+## printf (ODDF "1 2  3 4  ");
+## printf (ODDF "u i  d i  ");
+#  printf (ODDF "_ _  _ _  ");
+##printf (ODDF "+7.1f: dq_local ");
+#printf (ODDF "____dq____  _dq_local_  ");
+## printf (ODDF "above_thres in_spate ");
+## pirate !# in_spate_last in_spate_last_but1 in_spate_last_but2 ");
+## printf (ODDF "n_not_in_spate new_spate\n--- End of Legend ---\n");
+## printf (ODDF "5 6  ___7 8\n"); 
+## printf (ODDF "a i  n_!i n\n"); 
+#  printf (ODDF "a _  n_no _\n"); 
+## printf (ODDF "1=up_met  2=is_max    3=dn_met  4=is_min\
+##  5=above_thres  6=in_spate    7=n_not_in_spate  8=new_spate\n");
+#printf (ODDF "%s        %sb       t  \n",$padding1,$padding2);
+#printf (ODDF "%s        %so       | n\n",$padding1,$padding2);
+#printf (ODDF "%s        %sv i     i e\n",$padding1,$padding2);
+#printf (ODDF "%s        %se n     n w\n",$padding1,$padding2);
+#printf (ODDF "%su i  d i%s| |     | |\n",$padding1,$padding2);
+#printf (ODDF "%sp s  n s%st s     s s\n",$padding1,$padding2);
+#printf (ODDF "%s| |  | |%sh p     p p\n",$padding1,$padding2);
+#printf (ODDF "%sm m  m m%sr a     a a\n",$padding1,$padding2);
+#printf (ODDF "%se a  e i%se t     t t\n",$padding1,$padding2);
+#printf (ODDF "YYYY MM DD hh mm  ____qty___  ___epoch__  ");
+#printf (ODDF "_dqdt_qph  ");
+#printf (ODDF "___DSL___  ");
+#printf (ODDF "t x  t n  ");
+#printf (ODDF "____dq____  _dq_local_  ");
+#printf (ODDF "s e     e e\n");
+## printf (ODDF "--- End of Legend ---\n");
+## printf (ODDF "n_not_in_spate new_spate\n");
+
+# 160429CV updated header for new output variables qty_delta qty_delta_dn qty_max qty_min qty_base
+printf (ODDF "YYYY MM DD hh mm qty epoch dqdt_qph DSL up_met is_max dn_met ");
+printf (ODDF "is_min dq dq_local above_thres in_spate n_not_in_spate new_spate "); 
+printf (ODDF "qty_delta qty_delta_dn qty_max qty_min qty_base spate_start\n");
+
 
 printf (ODSF "Legend:\nnspat _tsls_d  ___epoch__ ___qty__  \n--- End of Legend ---\n");
 
@@ -643,7 +649,7 @@ $dqdt_abs_min_YMDhm =   0;
 $dqdt_abs_max_YMDhm =   0;
 $dqdt_abs_min_qty   = +60.;
 $dqdt_abs_max_qty   = -20.;
-
+$spate_start = 0;
 
 #### INITs for peak search -- this section has no parameters to modify. 
 ## Do **not** change those unless you know what you are doing
@@ -1104,6 +1110,7 @@ while(<IDF>) {
                     $new_spate=1;
                     $nspate++;
                     $peak_passed=0;
+                    $spate_start=-$n_recent_to_consider;
                     # if($nspate == 87){
                     #   	$verbose=1;
                     # } else {
@@ -1476,40 +1483,25 @@ printf (ODSLF "\n                                                               
     # and break backward compatibility !
     printf (ODF "%02d/%02d/%4d %02d:%02d, %+10.4f, %10d,  ",   # %12.7f, %7.3f, ",
                 $MM,$DD,$YY,$hh,$mm,$qty,$epoch);             # ,$cdyr-$YY0,$ddoy); # $cdoy %5.1f
-    printf (ODDF "%4d %02d %02d %02d %02d  %+10.4f  %10d  ",     # %15.10f %12.7f %7.3f  ",
-                 $YY, $MM, $DD, $hh, $mm,  $qty,    $epoch);     # ,$cdyr,$cdyr-$YY0,$ddoy);
-    # printf (ODDF "Legend:\nMM DD YYYY hh mm  __hT(m)_ _____cdyr______ __cdyr-YY0__ __ddoy_  ");
-	
-    # printf (ODF  " %+9.5f, %+9.5f",$dqdt_qph,$dhdt_cpm);
     printf (ODF  "%+9.5f,",$dqdt_qph);
-    printf (ODDF "%+9.5f  ",$dqdt_qph);
-    # printf (ODDF " _dqdt_qph dhdt_cmpm");
-  
-    # printf (ODF  " , %+9.2E, %1d, %1d, %1d, %1d, %1d, %1d, %1d\n",
-    # $DSL,$up_met,$is_max,$dn_met,$is_min,$above_thres,$n_not_above_thres,$new_spate);
-    # printf (ODDF "  %+9.2E  %1d %1d  %1d %1d  %1d %1d %1d\n",
-    # $DSL, $up_met,$is_max,$dn_met,$is_min,$above_thres,$n_not_above_thres,$new_spate);
-  
     printf (ODF  " %+9.2E, %1d, %1d, %1d, %1d, ",$DSL,$up_met,$is_max,$dn_met,$is_min);
-    printf (ODDF "%+9.2E  %1d %1d  %1d %1d  ",$DSL, $up_met,$is_max,$dn_met,$is_min);
-    # printf (ODDF "  _DeltaSL_  For here on a galore of 1/0 flags, in this order:\n");
-    # printf (ODDF "up_met is_max  dn_met is_min  ");
-  
     printf (ODF  "  %+10.4f, ",$dq_local);
-    # pirate !# printf (ODF  "  %1d,  %1d, %1d, %1d, %1d,",
-    # $above_thres,$in_spate,$in_spate_last,$in_spate_last_but1,$in_spate_last_but2);
     printf (ODF  "  %1d,  %1d,",$above_thres,$in_spate);
     printf (ODF  "  %4d, %1d\n",$n_not_in_spate,$new_spate);
 
+
+    printf (ODDF "%4d %02d %02d %02d %02d  %+10.4f  %10d  ",
+                 $YY, $MM, $DD, $hh, $mm,  $qty,    $epoch);
+    printf (ODDF "%+9.5f  ",$dqdt_qph);
+    printf (ODDF "%+9.2E  %1d %1d  %1d %1d  ",$DSL, $up_met,$is_max,$dn_met,$is_min);
     printf (ODDF "%+10.4f  %+10.4f  ",$dq, $dq_local);
-    # printf (ODDF "  +7.1f: dq_local ");
-    # pirate !# printf (ODDF "  %1d  %1d %1d %1d %1d",
-    # $above_thres,$in_spate,$in_spate_last,$in_spate_last_but1,$in_spate_last_but2);
     printf (ODDF "%1d %1d  ",$above_thres,$in_spate);
-    # printf (ODDF
-    # "  above_thres in_spate in_spate_last in_spate_last_but1 in_spate_last_but2");
-    printf (ODDF "%4d %1d\n",$n_not_in_spate,$new_spate);
-    # printf (ODDF "  n_not_in_spate new_spate\n--- End of Legend ---\n");
+    printf (ODDF "%4d %1d ",$n_not_in_spate,$new_spate);
+    printf (ODDF "%+10.4f ",$qty_delta*$is_max);
+    printf (ODDF "%+10.4f ",$qty_delta_dn*$is_min);
+    printf (ODDF "%+10.4f %+10.4f ",$qty_max,$qty_min);
+    printf (ODDF "%+10.4f ",$qty_base*$new_spate);
+    printf (ODDF "%+10.4f\n",$spate_start*$new_spate);
 
 
     # put here all updates that must be done before moving to the next point        
