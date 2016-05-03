@@ -1236,10 +1236,14 @@ while(<IDF>) {
 
                     $last_spate_epoch=$epoch_base;
                 } # if newspate
-                shift(@last_in_spate_vals);
+                while (@last_in_spate_vals>$n_not_in_spate_req){
+                    shift(@last_in_spate_vals);
+                }
             } # if($ndata > $n_recent_to_consider+$n_not_in_spate_req)
             # safer now to clean arrays at the bottom
-            shift(@last_thres_vals);
+            while (@last_thres_vals>$n_recent_to_consider-1){
+                shift(@last_thres_vals);
+            }
             shift(@last_YY_vals);
             shift(@last_MM_vals);
             shift(@last_DD_vals);
@@ -1251,7 +1255,9 @@ while(<IDF>) {
             shift(@last_epoch_vals);
             # Note! I don't understand the '+2' (and why not just '+1') - this is *bad*
             # if($ndata > $nspate_thres_up+5){
-            shift(@dq_local_vals);
+            while (@dq_local_vals>$n_recent_to_consider){
+                shift(@dq_local_vals);
+            }
             shift(@last_datetime_vals);  
             # }
         } # if ndata > n_recent_to_consider
