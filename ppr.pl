@@ -337,8 +337,8 @@ use     DateTime;     # added 160417 for robust datetime handling
 
 # custo 1 - this is to alter how the program behaves in general
 $verbose                   =      0;   # set to 1 for debugging, 0 = silent
-$verbose_stack             =      0;   # same, only for prints related to debugging of stacks
-$verbose_peaks             =      1;   # same, only for prints related to peak/trough searches
+$verbose_stack             =      1;   # same, only for prints related to debugging of stacks
+$verbose_peaks             =      0;   # same, only for prints related to peak/trough searches
  
 # custo 2 - this is to inform the program about the data it is being given
 $path_rundata              =    ".";   # tell script where to find DB rundata_<location>.txt files
@@ -1169,7 +1169,7 @@ while(<IDF>) {
                     $epoch_base=$last_epoch_vals[0];
                     # reminder for self on 160417: tsls_d = time since last spate (days)
                     printf (STDOUT "   recent+ %5d   %2d  %2d  %2d\n",
-                            $ndata,$#dq_local_vals,$#last_thres_vals,$#last_in_spate_vals)
+                            $ndata,$#dq_local_vals,$#last_thres_vals,$#last_in_spate_vals) # $#var_name yields the length of the vector -1 - i.e. max index (CV) 
                                 if($verbose_stack);
                     if($nspate == 1){
                         $tsls_d=0;
@@ -1426,7 +1426,9 @@ while(<IDF>) {
                 #BUG9# : indeed. Corrected, and also changed 
                 #$dqdt_qph <= $thres_dn to $dqdt_qph > $thres_dn 
                 # We want to check if current point is rising (e.g. local min has been passed)
-                # and $thres_dn has the same direction as $thres_up 160502 CV
+                # and $thres_dn has the same direction as $thres_up (see JF 
+                # condition: $thres_up < $thres_dn) 160502 CV --- Update 160503:
+                # $thres_dn does not support negative sign ! -> Change the sign again?
                 printf (STDOUT
 "\n\n >> passed th at: ndata=%5d qty=%10.3f, last_setmin_call_: ndata=%5d qty=%10.4f",
                         $ndata,$qty,$last_setmin_call_ndata,$last_setmin_call_qty)
@@ -2103,7 +2105,7 @@ sub read_db {
         chop();
         # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
-        $_ =~ /^\s+\$thres_dn\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
+        $_ =~ /^\s+\$thres_dn\s+=\s+((\+|-)?(\d+\.\d+|\d+))/ || die_on_syntax_error($db_fn);
         $thres_dn_db=$1;
         print "  thres_dn_db = $thres_dn_db\n" if ($verbose);
         
