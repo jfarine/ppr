@@ -613,10 +613,10 @@ open(OSF,  ">$sumnam") || die "Can't open output file: $sumnam, $!\n";
 ## printf (ODDF "--- End of Legend ---\n");
 ## printf (ODDF "n_not_in_spate new_spate\n");
 
-# 160429CV updated header for new output variables qty_delta qty_delta_dn qty_max qty_min qty_base
+# 160429CV updated header for new output variables qty_delta qty_delta_dn qty_max qty_min qty_base spate_start
 printf (ODDF "YYYY MM DD hh mm qty epoch dqdt_qph DSL up_met is_max dn_met ");
 printf (ODDF "is_min dq dq_local above_thres in_spate n_not_in_spate new_spate "); 
-printf (ODDF "qty_delta qty_delta_dn qty_max qty_min qty_base spate_start\n");
+printf (ODDF "qty_delta qty_delta_dn qty_max qty_min qty_base spate_start is_peak is_through\n");
 
 
 printf (ODSF "Legend:\nnspat _tsls_d  ___epoch__ ___qty__  \n--- End of Legend ---\n");
@@ -649,7 +649,16 @@ $dqdt_abs_min_YMDhm =   0;
 $dqdt_abs_max_YMDhm =   0;
 $dqdt_abs_min_qty   = +60.;
 $dqdt_abs_max_qty   = -20.;
-$spate_start = 0;
+$spate_start = 0; # index of the point where first raise is observed
+$is_peak = 0; # index of the point where peak is detected - >0 only when peak
+# has just been passed. This variable serves two purposes: 1) print index of the
+# point where a peak was detected and 2) print $qty_max and $qty_delta only when
+# a peak was detected - all of in .dat (ODDF file). 150503 CV
+$is_through = 0; # index of the point where through is detected - >0 only when
+# throught has just been passed. This variable serves two purposes: 1) print
+# index of the point where a through was detected and 2) print $qty_min and
+# $qty_delta_dn only when a through was detected - all of that in .dat (ODDF
+# file). 150503 CV
 
 #### INITs for peak search -- this section has no parameters to modify. 
 ## Do **not** change those unless you know what you are doing
@@ -765,7 +774,8 @@ while(<IDF>) {
 			      &setmin();
         }
     }
-
+    $is_peak=0; # initialized to 0 at each point
+    $is_through=0; # initialized to 0 at each point
 	  # yet another local variable, will store 5 (highest index 4)
 	  push(@dq_local_vals, $qty);  
 	  push(@last_datetime_vals, $datetime);  
@@ -1110,12 +1120,11 @@ while(<IDF>) {
                     $new_spate=1;
                     $nspate++;
                     $peak_passed=0;
-                    $spate_start=-$n_recent_to_consider;
-                    # if($nspate == 87){
-                    #   	$verbose=1;
-                    # } else {
-                    # 	  $verbose=0;
-                    # }
+                    $spate_start=$ndata-$n_recent_to_consider; 
+                    # $spate_start is the index of the point just *before* the 
+                    #spate starts (the spate starts when first raise is 
+                    #observed, e.g. $above_thres is true). $qty at point 
+                    #$spate_start is $qty_base 160502CV
                 } else {
                     $new_spate=0;
                 }
@@ -1368,14 +1377,8 @@ while(<IDF>) {
                         $days_delta);        ### NOTE: $days_delta was $ddoy_delta
                 # reset min to here, so as to look for next min down from the peak
                 if($peak_passed == 1){
-# printf (STDOUT
-# "\n                                                                            ");
-# printf (ODSLF
-# "\n                                                                            ");
-printf (ODSLF
+                printf (ODSLF
  "\n                                                                        ");
-# printf (ODSLF
-# "\n                                                                            ");
                 }
                 # 141021: comment for now ("0,>1 nspates" problem)
                 # printf (ODSF "%15.10f %+8.4f  %+7.3f  %6.3f  ",
@@ -1385,6 +1388,7 @@ printf (ODSLF
                                $qty_max, $qty_delta,$days_delta);
                                ### NOTE: $days_delta was $ddoy_delta
                 $peak_passed=1;
+                $is_peak=$ndata-1;
                 # printf (ODSFL "pk: _____epoch______ hTmax(m)  _dhT(m)  _Ddays");
                 # reset the min at the max, so can scan for new min from now on ..
                 &setmin();
@@ -1417,8 +1421,12 @@ printf (ODSLF
 " ndata=%5d  qty=%+10.4f  dqdt_qph=%+8.4f  through_cond_met=%1d nspate=%1d  -- through conds: ",
                             $ndata,$qty,$dqdt_qph,$through_cond_met,$nspate)  if ($verbose);
             # 160417 looks like a through condition passed here
-            if($dqdt_qph <= $thres_dn && $peak_cond_met == 1 && $nspate > 0){ #BUG9#
+            if($dqdt_qph > $thres_dn && $through_cond_met == 1 && $nspate > 0){ #BUG9#
                 #BUG9# : should this be "through" and not "peak" ? 160418 JF
+                #BUG9# : indeed. Corrected, and also changed 
+                #$dqdt_qph <= $thres_dn to $dqdt_qph > $thres_dn 
+                # We want to check if current point is rising (e.g. local min has been passed)
+                # and $thres_dn has the same direction as $thres_up 160502 CV
                 printf (STDOUT
 "\n\n >> passed th at: ndata=%5d qty=%10.3f, last_setmin_call_: ndata=%5d qty=%10.4f",
                         $ndata,$qty,$last_setmin_call_ndata,$last_setmin_call_qty)
@@ -1468,6 +1476,7 @@ printf (ODSLF "\n                                                               
                               $qty_min, $qty_delta_dn, $days_delta_dn);
                 # printf (ODSFL "tr: _____epoch______ hTmax(m)  _dhT(m)  ddoy_at_min\n");
                 $through_passed=1;
+                $is_through=$ndata-1;
                 # reset the max at the min, so can scan for new max from now on ..
                 &setmax();
             } else {
@@ -1499,9 +1508,11 @@ printf (ODSLF "\n                                                               
     printf (ODDF "%4d %1d ",$n_not_in_spate,$new_spate);
     printf (ODDF "%+10.4f ",$qty_delta*$is_max);
     printf (ODDF "%+10.4f ",$qty_delta_dn*$is_min);
-    printf (ODDF "%+10.4f %+10.4f ",$qty_max,$qty_min);
+    if($is_peak>0){printf (ODDF "%+10.4f ",$qty_max);} else{printf (ODDF "%10d ",$is_peak);} #only print $qty_max if peak was just met
+    if($is_through>0){printf (ODDF "%+10.4f ",$qty_min);} else{printf (ODDF "%10d ",$is_through);} #only print $qty_min if through was just met
     printf (ODDF "%+10.4f ",$qty_base*$new_spate);
-    printf (ODDF "%+10.4f\n",$spate_start*$new_spate);
+    printf (ODDF "%4d ",$spate_start*$new_spate);
+    printf (ODDF "%4d %4d\n",$is_peak,$is_through);
 
 
     # put here all updates that must be done before moving to the next point        
