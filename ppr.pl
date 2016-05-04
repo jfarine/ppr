@@ -336,8 +336,8 @@ use     DateTime;     # added 160417 for robust datetime handling
 #       might get overwritten
 
 # custo 1 - this is to alter how the program behaves in general
-$verbose                   =      0;   # set to 1 for debugging, 0 = silent
-$verbose_stack             =      1;   # same, only for prints related to debugging of stacks
+$verbose                   =      1;   # set to 1 for debugging, 0 = silent
+$verbose_stack             =      0;   # same, only for prints related to debugging of stacks
 $verbose_peaks             =      0;   # same, only for prints related to peak/trough searches
  
 # custo 2 - this is to inform the program about the data it is being given
@@ -2063,7 +2063,7 @@ sub read_db {
         chop();
         # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
-        $_ =~ /^\s+\$spate_thres_up\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
+        $_ =~ /^\s+\$spate_thres_up\s+=\s+((\+|-)?(\d+\.\d+|\d+))/ || die_on_syntax_error($db_fn);
         $spate_thres_up_db=$1;
         print "  spate_thres_up_db = $spate_thres_up_db\n" if ($verbose);
         
@@ -2095,7 +2095,7 @@ sub read_db {
         chop();
         # $nline++;     # increment is done in get_next_non_comment_line()
         print ">$_<\n" if ($verbose);
-        $_ =~ /^\s+\$thres_up\s+=\s+(\d+\.\d+|\d+)/ || die_on_syntax_error($db_fn);
+        $_ =~ /^\s+\$thres_up\s+=\s+((\+|-)?(\d+\.\d+|\d+))/ || die_on_syntax_error($db_fn);
         $thres_up_db=$1;
         print "  thres_up_db = $thres_up_db\n" if ($verbose);
         
